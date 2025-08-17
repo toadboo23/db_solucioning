@@ -484,8 +484,11 @@ export default function CompanyLeaves () {
                     <TableHead>Email Personal</TableHead>
                     <TableHead>Tipo de Baja</TableHead>
                     <TableHead>Fecha de Baja</TableHead>
-                    <TableHead>Estado</TableHead>
                     <TableHead>Solicitado por</TableHead>
+                    <TableHead>Fecha Solicitud</TableHead>
+                    <TableHead>Aprobado por</TableHead>
+                    <TableHead>Fecha Aprobación</TableHead>
+                    <TableHead>Estado</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -532,8 +535,16 @@ export default function CompanyLeaves () {
                             <div className="text-xs text-blue-700 font-semibold">Fecha de baja: {leave.fechaBaja}</div>
                           )}
                         </TableCell>
-                        <TableCell>{getStatusBadge(leave.status)}</TableCell>
+                        
                         <TableCell>{leave.leaveRequestedBy}</TableCell>
+                        <TableCell>
+                          {leave.leaveRequestedAt ? new Date(leave.leaveRequestedAt).toLocaleDateString('es-ES') : 'N/A'}
+                        </TableCell>
+                        <TableCell>{leave.approvedBy || 'N/A'}</TableCell>
+                        <TableCell>
+                          {leave.approvedAt ? new Date(leave.approvedAt).toLocaleDateString('es-ES') : 'N/A'}
+                        <TableCell>{getStatusBadge(leave.status)}</TableCell>
+                        </TableCell>
                         <TableCell>
                           {/* Botón para reactivar empleado desde baja empresa aprobada */}
                           {leave.status === 'approved' && user?.role === 'super_admin' && !isReactivated && (
