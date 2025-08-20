@@ -414,7 +414,8 @@ export async function registerRoutes (app: Express): Promise<Server> {
         return {
           idGlovo: processString(emp.idGlovo) || `TEMP_${index}`,
           emailGlovo: processString(emp.emailGlovo),
-          turno: processString(emp.turno),
+          turno1: processString(emp.turno1),
+          turno2: processString(emp.turno2),
           nombre: processString(emp.nombre) || 'Sin Nombre',
           apellido: processString(emp.apellido),
           telefono: processString(emp.telefono) || 'Sin Teléfono',
@@ -1543,7 +1544,8 @@ export async function registerRoutes (app: Express): Promise<Server> {
       const csvHeaders = [
         'ID Glovo',
         'Email Glovo',
-        'Turno',
+        'Turno 1',
+        'Turno 2',
         'Nombre',
         'Apellido',
         'Teléfono',
@@ -1581,7 +1583,8 @@ export async function registerRoutes (app: Express): Promise<Server> {
       const csvRows = employees.map(emp => [
         emp.idGlovo,
         emp.emailGlovo || '',
-        emp.turno || '',
+        emp.turno1 || '',
+        emp.turno2 || '',
         emp.nombre,
         emp.apellido || '',
         emp.telefono || '',
@@ -1673,36 +1676,74 @@ export async function registerRoutes (app: Express): Promise<Server> {
         const isGlovoEmail = emp.emailGlovo?.includes('@solucioning.net');
         const isPersonalEmail = emp.email && !emp.email.includes('@solucioning.net');
         return {
+          // Información Básica
           'ID Glovo': emp.idGlovo,
           'Email Glovo': isGlovoEmail ? emp.emailGlovo : '',
-          'Turno': emp.turno,
+          'Turno 1': emp.turno1,
+          'Turno 2': emp.turno2,
           'Nombre': emp.nombre,
           'Apellido': emp.apellido,
           'Teléfono': emp.telefono,
           'Email Personal': isPersonalEmail ? emp.email : '',
+          
+          // Información Laboral
           'Horas': emp.horas,
+          'CDP': emp.cdp,
           'CDP%': emp.horas ? ((emp.horas / 38) * 100).toFixed(2) : null,
           'Complementarios': emp.complementaries,
+          'Departamento': emp.departamento,
+          'Puesto': emp.puesto,
+          'Supervisor': emp.supervisor,
+          
+          // Información de Ubicación
           'Ciudad': emp.ciudad,
-          'Código Ciudad': emp.cityCode,
+          'Estado': emp.estado,
+          'Código Postal': emp.codigoPostal,
+          'Dirección': emp.direccion,
+          
+          // Información Personal
+          'Fecha Nacimiento': emp.fechaNacimiento ? new Date(emp.fechaNacimiento).toLocaleDateString('es-ES') : '',
+          'Fecha Contratación': emp.fechaContratacion ? new Date(emp.fechaContratacion).toLocaleDateString('es-ES') : '',
+          'Salario': emp.salario,
+          
+          // Documentos de Identidad
           'DNI/NIE': emp.dniNie,
           'IBAN': emp.iban,
-          'Dirección': emp.direccion,
+          'Seguro Social': emp.seguroSocial,
+          'RFC': emp.rfc,
+          'CURP': emp.curp,
+          'INE': emp.ine,
+          'Licencia Conducir': emp.licenciaConducir,
+          
+          // Información Vehicular
           'Vehículo': emp.vehiculo,
           'NAF': emp.naf,
+          
+          // Información de Seguridad Social
           'Fecha Alta Seg. Social': emp.fechaAltaSegSoc ? new Date(emp.fechaAltaSegSoc).toLocaleDateString('es-ES') : '',
           'Status Baja': emp.statusBaja,
           'Estado SS': emp.estadoSs,
+          
+          // Información de Horarios
           'Informado Horario': emp.informadoHorario ? 'Sí' : 'No',
           'Cuenta Divilo': emp.cuentaDivilo,
           'Próxima Asignación Slots': emp.proximaAsignacionSlots ? new Date(emp.proximaAsignacionSlots).toLocaleDateString('es-ES') : '',
           'Jefe de Tráfico': emp.jefeTrafico,
           'Flota': emp.flota || '',
           'Comentarios Jefe Tráfico': emp.comentsJefeDeTrafico,
+          
+          // Información de Emergencia
+          'Emergencia Nombre': emp.emergenciaNombre,
+          'Emergencia Teléfono': emp.emergenciaTelefono,
+          'Emergencia Relación': emp.emergenciaRelacion,
+          
+          // Información de Incidencias
           'Incidencias': emp.incidencias,
           'Fecha Incidencia': emp.fechaIncidencia ? new Date(emp.fechaIncidencia).toLocaleDateString('es-ES') : '',
           'Faltas No Check-in (días)': emp.faltasNoCheckInEnDias,
           'Cruce': emp.cruce,
+          
+          // Estado y Penalizaciones
           'Estado': emp.status === 'active' ? 'Activo' :
             emp.status === 'it_leave' ? 'Baja IT' :
               emp.status === 'company_leave_pending' ? 'Baja Empresa Pendiente' :
@@ -1710,8 +1751,53 @@ export async function registerRoutes (app: Express): Promise<Server> {
           'Fecha Inicio Penalización': emp.penalizationStartDate ? new Date(emp.penalizationStartDate).toLocaleDateString('es-ES') : '',
           'Fecha Fin Penalización': emp.penalizationEndDate ? new Date(emp.penalizationEndDate).toLocaleDateString('es-ES') : '',
           'Horas Originales': emp.originalHours,
+          
+          // Vacaciones
           'Vacaciones Disfrutadas': typeof emp.vacacionesDisfrutadas !== 'undefined' ? Number(emp.vacacionesDisfrutadas).toFixed(2) : '',
           'Vacaciones Pendientes': typeof emp.vacacionesPendientes !== 'undefined' ? Number(emp.vacacionesPendientes).toFixed(2) : '',
+          
+          // Información de Desarrollo
+          'Certificaciones': emp.certificaciones,
+          'Habilidades': emp.habilidades,
+          'Idiomas': emp.idiomas,
+          'Experiencia Anterior': emp.experienciaAnterior,
+          'Educación': emp.educacion,
+          'Referencias': emp.referencias,
+          'Evaluaciones': emp.evaluaciones,
+          'Capacitaciones': emp.capacitaciones,
+          'Ausencias': emp.ausencias,
+          'Incidentes': emp.incidentes,
+          'Reconocimientos': emp.reconocimientos,
+          'Metas': emp.metas,
+          'Plan Desarrollo': emp.planDesarrollo,
+          'Comentarios Supervisor': emp.comentariosSupervisor,
+          'Comentarios HR': emp.comentariosHr,
+          
+          // Información de Revisión
+          'Fecha Revisión': emp.fechaRevision ? new Date(emp.fechaRevision).toLocaleDateString('es-ES') : '',
+          'Próxima Revisión': emp.proximaRevision ? new Date(emp.proximaRevision).toLocaleDateString('es-ES') : '',
+          
+          // Información de Contrato
+          'Estado Contratación': emp.estadoContratacion,
+          'Tipo Contrato': emp.tipoContrato,
+          'Fecha Fin Contrato': emp.fechaFinContrato ? new Date(emp.fechaFinContrato).toLocaleDateString('es-ES') : '',
+          'Periodo Prueba': emp.periodoPrueba ? 'Sí' : 'No',
+          'Fecha Fin Prueba': emp.fechaFinPrueba ? new Date(emp.fechaFinPrueba).toLocaleDateString('es-ES') : '',
+          
+          // Información de Terminación
+          'Motivo Terminación': emp.motivoTerminacion,
+          'Fecha Terminación': emp.fechaTerminacion ? new Date(emp.fechaTerminacion).toLocaleDateString('es-ES') : '',
+          'Documentos Entregados': emp.documentosEntregados,
+          'Equipo Devuelto': emp.equipoDevuelto,
+          'Entrevista Salida': emp.entrevistaSalida,
+          'Recomendación Recontratación': emp.recomendacionRecontratacion ? 'Sí' : 'No',
+          'Comentarios Salida': emp.comentariosSalida,
+          
+          // Información del Sistema
+          'Activo': emp.activo ? 'Sí' : 'No',
+          'Notas': emp.notas,
+          'Foto URL': emp.fotoUrl,
+          'Documentos URL': emp.documentosUrl,
           'Fecha Creación': emp.createdAt ? new Date(emp.createdAt).toLocaleDateString('es-ES') : '',
           'Última Actualización': emp.updatedAt ? new Date(emp.updatedAt).toLocaleDateString('es-ES') : '',
         };
@@ -1723,42 +1809,125 @@ export async function registerRoutes (app: Express): Promise<Server> {
 
       // Set column widths for better readability
       const columnWidths = [
+        // Información Básica
         { wch: 12 }, // ID Glovo
         { wch: 25 }, // Email Glovo
-        { wch: 10 }, // Turno
+        { wch: 10 }, // Turno 1
+        { wch: 10 }, // Turno 2
         { wch: 15 }, // Nombre
         { wch: 15 }, // Apellido
         { wch: 15 }, // Teléfono
         { wch: 25 }, // Email Personal
+        
+        // Información Laboral
         { wch: 8 },  // Horas
+        { wch: 10 }, // CDP
         { wch: 10 }, // CDP%
         { wch: 15 }, // Complementarios
+        { wch: 15 }, // Departamento
+        { wch: 15 }, // Puesto
+        { wch: 20 }, // Supervisor
+        
+        // Información de Ubicación
         { wch: 15 }, // Ciudad
-        { wch: 12 }, // Código Ciudad
+        { wch: 12 }, // Estado
+        { wch: 12 }, // Código Postal
+        { wch: 30 }, // Dirección
+        
+        // Información Personal
+        { wch: 15 }, // Fecha Nacimiento
+        { wch: 15 }, // Fecha Contratación
+        { wch: 12 }, // Salario
+        
+        // Documentos de Identidad
         { wch: 15 }, // DNI/NIE
         { wch: 25 }, // IBAN
-        { wch: 30 }, // Dirección
+        { wch: 15 }, // Seguro Social
+        { wch: 15 }, // RFC
+        { wch: 15 }, // CURP
+        { wch: 15 }, // INE
+        { wch: 20 }, // Licencia Conducir
+        
+        // Información Vehicular
         { wch: 12 }, // Vehículo
         { wch: 15 }, // NAF
+        
+        // Información de Seguridad Social
         { wch: 20 }, // Fecha Alta Seg. Social
         { wch: 15 }, // Status Baja
         { wch: 12 }, // Estado SS
+        
+        // Información de Horarios
         { wch: 15 }, // Informado Horario
         { wch: 20 }, // Cuenta Divilo
         { wch: 25 }, // Próxima Asignación Slots
         { wch: 20 }, // Jefe de Tráfico
         { wch: 10 }, // Flota
         { wch: 30 }, // Comentarios Jefe Tráfico
+        
+        // Información de Emergencia
+        { wch: 20 }, // Emergencia Nombre
+        { wch: 15 }, // Emergencia Teléfono
+        { wch: 15 }, // Emergencia Relación
+        
+        // Información de Incidencias
         { wch: 20 }, // Incidencias
         { wch: 20 }, // Fecha Incidencia
-        { wch: 20 }, // Faltas No Check-in
+        { wch: 20 }, // Faltas No Check-in (días)
         { wch: 10 }, // Cruce
+        
+        // Estado y Penalizaciones
         { wch: 15 }, // Estado
         { wch: 20 }, // Fecha Inicio Penalización
         { wch: 20 }, // Fecha Fin Penalización
         { wch: 15 }, // Horas Originales
+        
+        // Vacaciones
         { wch: 20 }, // Vacaciones Disfrutadas
         { wch: 20 }, // Vacaciones Pendientes
+        
+        // Información de Desarrollo
+        { wch: 20 }, // Certificaciones
+        { wch: 20 }, // Habilidades
+        { wch: 15 }, // Idiomas
+        { wch: 25 }, // Experiencia Anterior
+        { wch: 20 }, // Educación
+        { wch: 20 }, // Referencias
+        { wch: 20 }, // Evaluaciones
+        { wch: 20 }, // Capacitaciones
+        { wch: 20 }, // Ausencias
+        { wch: 20 }, // Incidentes
+        { wch: 20 }, // Reconocimientos
+        { wch: 15 }, // Metas
+        { wch: 20 }, // Plan Desarrollo
+        { wch: 25 }, // Comentarios Supervisor
+        { wch: 20 }, // Comentarios HR
+        
+        // Información de Revisión
+        { wch: 20 }, // Fecha Revisión
+        { wch: 20 }, // Próxima Revisión
+        
+        // Información de Contrato
+        { wch: 20 }, // Estado Contratación
+        { wch: 15 }, // Tipo Contrato
+        { wch: 20 }, // Fecha Fin Contrato
+        { wch: 15 }, // Periodo Prueba
+        { wch: 20 }, // Fecha Fin Prueba
+        
+        // Información de Terminación
+        { wch: 25 }, // Motivo Terminación
+        { wch: 20 }, // Fecha Terminación
+        { wch: 25 }, // Documentos Entregados
+        { wch: 20 }, // Equipo Devuelto
+        { wch: 20 }, // Entrevista Salida
+        { wch: 25 }, // Recomendación Recontratación
+        { wch: 25 }, // Comentarios Salida
+        
+        // Información del Sistema
+        { wch: 10 }, // Activo
+        { wch: 30 }, // Notas
+        { wch: 30 }, // Foto URL
+        { wch: 30 }, // Documentos URL
         { wch: 15 }, // Fecha Creación
         { wch: 20 }, // Última Actualización
       ];

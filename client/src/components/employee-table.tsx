@@ -97,7 +97,8 @@ export default function EmployeeTable ({
                 <TableHead>Horas</TableHead>
                 <TableHead>CDP%</TableHead>
                 <TableHead>Complementarias</TableHead>
-                <TableHead>Turno</TableHead>
+                <TableHead>Turno 1</TableHead>
+                <TableHead>Turno 2</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -201,7 +202,10 @@ export default function EmployeeTable ({
                     )}
                   </TableCell>
                   <TableCell className="text-sm text-gray-900">
-                    {employee.turno || 'N/A'}
+                    {employee.turno1 || 'N/A'}
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-900">
+                    {employee.turno2 || 'N/A'}
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">

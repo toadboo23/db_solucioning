@@ -183,7 +183,7 @@ export default function EmployeeDetailModal ({
                     )}
                   </div>
                   <p className="text-sm text-gray-500">
-                    Turno: {employee.turno || 'No especificado'}
+                    Turno 1: {employee.turno1 || 'No especificado'} | Turno 2: {employee.turno2 || 'No especificado'}
                   </p>
                 </div>
               </div>
@@ -275,8 +275,13 @@ export default function EmployeeDetailModal ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InfoItem
                   icon={Clock}
-                  label="Turno"
-                  value={employee.turno}
+                  label="Turno 1"
+                  value={employee.turno1}
+                />
+                <InfoItem
+                  icon={Clock}
+                  label="Turno 2"
+                  value={employee.turno2}
                 />
                 <InfoItem
                   icon={Clock}

@@ -73,7 +73,8 @@ export default function EditEmployeeModal ({
     defaultValues: {
       idGlovo: '',
       emailGlovo: '',
-      turno: '',
+      turno1: '',
+      turno2: '',
       nombre: '',
       apellido: '',
       telefono: '',
@@ -110,7 +111,8 @@ export default function EditEmployeeModal ({
       form.reset({
         idGlovo: employee.idGlovo || '',
         emailGlovo: employee.emailGlovo || '',
-        turno: employee.turno || '',
+        turno1: employee.turno1 || '',
+        turno2: employee.turno2 || '',
         nombre: employee.nombre || '',
         apellido: employee.apellido || '',
         telefono: employee.telefono || '',
@@ -144,7 +146,8 @@ export default function EditEmployeeModal ({
       form.reset({
         idGlovo: '',
         emailGlovo: '',
-        turno: '',
+        turno1: '',
+        turno2: '',
         nombre: '',
         apellido: '',
         telefono: '',
@@ -370,14 +373,38 @@ export default function EditEmployeeModal ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
-                  name="turno"
+                  name="turno1"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Turno</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={isFieldDisabled('turno')}>
+                      <FormLabel>Turno 1</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={isFieldDisabled('turno1')}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecciona turno" />
+                            <SelectValue placeholder="Selecciona turno 1" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="mañana">Mañana</SelectItem>
+                          <SelectItem value="tarde">Tarde</SelectItem>
+                          <SelectItem value="noche">Noche</SelectItem>
+                          <SelectItem value="rotativo">Rotativo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="turno2"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Turno 2</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={isFieldDisabled('turno2')}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona turno 2" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>

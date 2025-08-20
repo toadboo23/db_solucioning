@@ -60,7 +60,8 @@ export const systemUsers = pgTable('system_users', {
 export const employees = pgTable('employees', {
   idGlovo: varchar('id_glovo', { length: 50 }).primaryKey(),
   emailGlovo: varchar('email_glovo', { length: 100 }).unique(),
-  turno: varchar('turno', { length: 50 }),
+  turno1: varchar('turno_1', { length: 50 }),
+  turno2: varchar('turno_2', { length: 50 }),
   nombre: varchar('nombre', { length: 100 }).notNull(),
   apellido: varchar('apellido', { length: 100 }),
   telefono: varchar('telefono', { length: 20 }),
