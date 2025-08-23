@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+// Test GitHub Actions deployment - 2025-08-20
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
