@@ -765,8 +765,6 @@ export default function Employees () {
                     <SelectItem value="active">Activo</SelectItem>
                     <SelectItem value="pendiente_activacion">Pendiente Activación</SelectItem>
                     <SelectItem value="it_leave">Baja IT</SelectItem>
-                    <SelectItem value="company_leave_pending">Baja Empresa Pendiente</SelectItem>
-                    <SelectItem value="company_leave_approved">Baja Empresa Aprobada</SelectItem>
                     <SelectItem value="pending_laboral">Pendiente Laboral</SelectItem>
                     <SelectItem value="penalizado">Penalizado</SelectItem>
                   </SelectContent>

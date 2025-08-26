@@ -656,7 +656,7 @@ export default function Notifications () {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleTramitar(notification, 'approve')}
+                                  onClick={() => handleTramitar(notification, 'processed')}
                                   className="text-green-600 hover:text-green-700"
                                 >
                                   <Check className="h-4 w-4 mr-1" />
@@ -690,10 +690,10 @@ export default function Notifications () {
         <DialogContent className="max-w-md" aria-describedby="tramitation-description">
           <DialogHeader>
             <DialogTitle>
-              {tramitationModal.action === 'approve' ? 'Tramitar Solicitud' :
+              {tramitationModal.action === 'approve' ? 'Aprobar Solicitud' :
                 tramitationModal.action === 'reject' ? 'Rechazar Solicitud' :
                   tramitationModal.action === 'pending_laboral' ? 'Mover a Pendiente Laboral' :
-                    'Procesar Solicitud'}
+                    'Tramitar Solicitud (Eliminar Empleado)'}
             </DialogTitle>
           </DialogHeader>
           <div id="tramitation-description" className="sr-only">

@@ -406,7 +406,7 @@ export class PostgresStorage {
     return notification;
   }
 
-  async updateNotificationStatusWithDate (id: number, status: 'pending' | 'pendiente_laboral' | 'approved' | 'rejected' | 'processed', processingDate: Date): Promise<Notification> {
+  async updateNotificationStatusWithDate (id: number, status: 'pending' | 'pending_laboral' | 'approved' | 'rejected' | 'processed', processingDate: Date): Promise<Notification> {
     const [notification] = await db
       .update(notifications)
       .set({ status, processingDate, updatedAt: new Date() })

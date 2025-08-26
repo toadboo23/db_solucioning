@@ -51,10 +51,8 @@ export default function EmployeeTable ({
         return <Badge className="bg-blue-100 text-blue-800">Pendiente Activación</Badge>;
       case 'it_leave':
         return <Badge className="bg-orange-100 text-orange-800">Baja IT</Badge>;
-      case 'company_leave_pending':
-        return <Badge className="bg-yellow-100 text-yellow-800">Baja Empresa Pendiente</Badge>;
-      case 'company_leave_approved':
-        return <Badge className="bg-red-100 text-red-800">Baja Empresa Aprobada</Badge>;
+      // Los estados company_leave_pending y company_leave_approved ya no se usan
+      // Los empleados permanecen 'active' hasta que se tramite la pendiente laboral
       case 'pending_laboral':
         return <Badge className="bg-purple-100 text-purple-800">Pendiente Laboral</Badge>;
       case 'penalizado':

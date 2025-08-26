@@ -1022,26 +1022,28 @@ export async function registerRoutes (app: Express): Promise<Server> {
 
           switch (action) {
             case 'approve':
-              newEmployeeStatus = 'company_leave_approved';
+              // Empleado permanece ACTIVE, solo se aprueba en company_leaves
+              newEmployeeStatus = 'active'; // Empleado sigue activo
               newCompanyLeaveStatus = 'approved';
               break;
             case 'reject':
-              newEmployeeStatus = 'active'; // Return to active status
+              // Empleado permanece ACTIVE, se rechaza en company_leaves
+              newEmployeeStatus = 'active'; // Empleado sigue activo
               newCompanyLeaveStatus = 'rejected';
               break;
             case 'pending_laboral':
-              newEmployeeStatus = 'pending_laboral';
+              // Empleado permanece ACTIVE, se mueve a pendiente laboral
+              newEmployeeStatus = 'active'; // Empleado sigue activo
               newCompanyLeaveStatus = 'pending';
               break;
             case 'processed':
-              // Cuando se procesa una notificación de pending_laboral como "tramitado",
-              // el empleado debe ser eliminado de la tabla employees
+              // SOLO cuando se tramita pendiente laboral: empleado sale de employees y va a company_leaves
               newEmployeeStatus = 'deleted'; // Para el audit log, aunque no se use
               newCompanyLeaveStatus = 'approved';
               shouldDeleteEmployee = true;
               break;
             default:
-              newEmployeeStatus = 'company_leave_pending';
+              newEmployeeStatus = 'active'; // Por defecto, empleado permanece activo
               newCompanyLeaveStatus = 'pending';
           }
 
@@ -1151,8 +1153,13 @@ export async function registerRoutes (app: Express): Promise<Server> {
                 }
               }
             } else {
-              // Para otras acciones, solo cambiar el estado
-              await storage.updateEmployee(employeeId, { status: newEmployeeStatus as any });
+              // Para approve y pending_laboral: NO cambiar el estado del empleado (permanece ACTIVE)
+              // Solo para reject se restaura el estado a active (aunque ya está active)
+              if (action === 'reject') {
+                // Solo restaurar horas si es necesario, pero el estado ya es active
+                await storage.updateEmployee(employeeId, { status: 'active' as any });
+              }
+              // Para approve y pending_laboral: NO hacer nada con el empleado, permanece active
             }
           }
 
@@ -1161,35 +1168,9 @@ export async function registerRoutes (app: Express): Promise<Server> {
             await storage.updateCompanyLeaveStatus(parseInt(companyLeaveId), newCompanyLeaveStatus, user.email || '', new Date(processingDate));
           }
 
-          // If action is pending_laboral, create a new notification for pending laboral
-          if (action === 'pending_laboral') {
-            // Obtener datos del empleado para incluir en la notificación
-            const empleado = await storage.getEmployee(employeeId);
-            const empleadoMetadata = empleado ? getEmpleadoMetadata(empleado) : {};
-            
-            // Obtener el motivo completo del metadata original
-            const motivoCompleto = metadata.motivoCompleto || 'Baja Empresa';
-            const fechaBaja = metadata.fechaBaja || new Date().toLocaleDateString('es-ES');
-            
-            // Create a new notification for pending laboral
-            await storage.createNotification({
-              type: 'company_leave_request',
-              title: `${motivoCompleto} - Pendiente Laboral`,
-              message: `El empleado ${employeeId} con ${motivoCompleto} del ${fechaBaja} ha sido movido a pendiente laboral. Requiere tramitación.`,
-              status: 'pending_laboral',
-              requestedBy: user.email || '',
-              metadata: {
-                ...empleadoMetadata,
-                employeeId,
-                companyLeaveId,
-                originalNotificationId: notification.id,
-                action: 'pending_laboral',
-                motivoCompleto,
-                fechaBaja,
-                tipoBaja: 'Empresa',
-              },
-            });
-          }
+          // If action is pending_laboral, NO crear nueva notificación - solo actualizar la existente
+          // La notificación original cambiará de estado de 'pending' a 'pending_laboral'
+          // Esto evita la duplicación de notificaciones
 
           // Log audit for employee status change (solo si no se eliminó)
           if (!shouldDeleteEmployee) {
@@ -1203,7 +1184,7 @@ export async function registerRoutes (app: Express): Promise<Server> {
               action: 'process_company_leave_notification',
               entityType: 'employee',
               entityId: employeeId,
-              description: `Usuario ${user.email} ${action === 'approve' ? 'APROBÓ' : action === 'reject' ? 'RECHAZÓ' : 'MOVIÓ A PENDIENTE LABORAL'} la ${motivoCompleto} del empleado ${employeeId} (${fechaBaja}) - Estado final: ${newEmployeeStatus}`,
+              description: `Usuario ${user.email} ${action === 'approve' ? 'APROBÓ' : action === 'reject' ? 'RECHAZÓ' : 'MOVIÓ A PENDIENTE LABORAL'} la ${motivoCompleto} del empleado ${employeeId} (${fechaBaja}) - Empleado permanece ACTIVE hasta tramitación final`,
               newData: {
                 processedBy: user.email,
                 action,
@@ -1223,7 +1204,7 @@ export async function registerRoutes (app: Express): Promise<Server> {
       // Update notification status with processing date
       const updatedNotification = await storage.updateNotificationStatusWithDate(
         parseInt(id),
-        action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action === 'pending_laboral' ? 'approved' : 'processed',
+        action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action === 'pending_laboral' ? 'pending_laboral' : 'processed',
         new Date(processingDate),
       );
 
