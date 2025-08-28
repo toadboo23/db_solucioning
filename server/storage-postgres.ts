@@ -524,7 +524,54 @@ export class PostgresStorage {
 
       if (process.env.NODE_ENV !== 'production') console.log('Processed employees with CDP:', employeesWithCDP.length);
 
-      const createdEmployees = await db.insert(employees).values(employeesWithCDP as InsertEmployee[]).returning();
+      // Usar ON CONFLICT para manejar duplicados (UPSERT)
+      const createdEmployees = await db
+        .insert(employees)
+        .values(employeesWithCDP as InsertEmployee[])
+        .onConflictDoUpdate({
+          target: employees.idGlovo,
+          set: {
+            emailGlovo: sql`EXCLUDED.email_glovo`,
+            turno1: sql`EXCLUDED.turno_1`,
+            turno2: sql`EXCLUDED.turno_2`,
+            nombre: sql`EXCLUDED.nombre`,
+            apellido: sql`EXCLUDED.apellido`,
+            telefono: sql`EXCLUDED.telefono`,
+            email: sql`EXCLUDED.email`,
+            horas: sql`EXCLUDED.horas`,
+            cdp: sql`EXCLUDED.cdp`,
+            complementaries: sql`EXCLUDED.complementaries`,
+            ciudad: sql`EXCLUDED.ciudad`,
+            cityCode: sql`EXCLUDED.citycode`,
+            dniNie: sql`EXCLUDED.dni_nie`,
+            iban: sql`EXCLUDED.iban`,
+            direccion: sql`EXCLUDED.direccion`,
+            vehiculo: sql`EXCLUDED.vehiculo`,
+            naf: sql`EXCLUDED.naf`,
+            fechaAltaSegSoc: sql`EXCLUDED.fecha_alta_seg_soc`,
+            statusBaja: sql`EXCLUDED.status_baja`,
+            estadoSs: sql`EXCLUDED.estado_ss`,
+            informadoHorario: sql`EXCLUDED.informado_horario`,
+            cuentaDivilo: sql`EXCLUDED.cuenta_divilo`,
+            proximaAsignacionSlots: sql`EXCLUDED.proxima_asignacion_slots`,
+            jefeTrafico: sql`EXCLUDED.jefe_trafico`,
+            comentsJefeDeTrafico: sql`EXCLUDED.coments_jefe_de_trafico`,
+            incidencias: sql`EXCLUDED.incidencias`,
+            fechaIncidencia: sql`EXCLUDED.fecha_incidencia`,
+            faltasNoCheckInEnDias: sql`EXCLUDED.faltas_no_check_in_en_dias`,
+            cruce: sql`EXCLUDED.cruce`,
+            status: sql`EXCLUDED.status`,
+            penalizationStartDate: sql`EXCLUDED.penalization_start_date`,
+            penalizationEndDate: sql`EXCLUDED.penalization_end_date`,
+            originalHours: sql`EXCLUDED.original_hours`,
+            flota: sql`EXCLUDED.flota`,
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+            vacacionesDisfrutadas: sql`EXCLUDED.vacaciones_disfrutadas`,
+            vacacionesPendientes: sql`EXCLUDED.vacaciones_pendientes`,
+          }
+        })
+        .returning();
+      
       if (process.env.NODE_ENV !== 'production') console.log('Bulk operation completed. Total employees:', createdEmployees.length);
       return createdEmployees;
     } catch (error) {
