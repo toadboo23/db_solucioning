@@ -16,7 +16,9 @@ services:
       POSTGRES_HOST_AUTH_METHOD: ${POSTGRES_HOST_AUTH_METHOD:-trust}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - postgres_backups:/var/lib/postgresql/backups
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./database/migrations:/docker-entrypoint-initdb.d/migrations:ro
     ports:
       - "5432:5432"
     networks:
@@ -90,8 +92,22 @@ services:
 volumes:
   postgres_data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./docker-data/postgres
+  postgres_backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./docker-data/backups
   pgadmin_data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./docker-data/pgadmin
 
 networks:
   solucioning_network:
