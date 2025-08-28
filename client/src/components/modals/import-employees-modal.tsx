@@ -19,20 +19,42 @@ interface ImportEmployeesModalProps {
 
 interface EmployeeData {
   idGlovo: string;
+  emailGlovo?: string;
+  turno1?: string;
+  turno2?: string;
   nombre: string;
-  apellido: string;
-  email: string; // Email personal
-  emailGlovo: string; // Email corporativo de Glovo
-  telefono: string;
-  dniNie: string;
-  iban: string;
-  ciudad: string;
-  cityCode: string;
-  flota: string;
-  direccion: string;
-  vehiculo: string;
-  naf: string;
-  horas: number;
+  apellido?: string;
+  telefono?: string;
+  email?: string; // Email personal
+  horas?: number;
+  cdp?: number;
+  complementaries?: string;
+  ciudad?: string;
+  cityCode?: string;
+  dniNie?: string;
+  iban?: string;
+  direccion?: string;
+  vehiculo?: string;
+  naf?: string;
+  fechaAltaSegSoc?: string;
+  statusBaja?: string;
+  estadoSs?: string;
+  informadoHorario?: boolean;
+  cuentaDivilo?: string;
+  proximaAsignacionSlots?: string;
+  jefeTrafico?: string;
+  comentsJefeDeTrafico?: string;
+  incidencias?: string;
+  fechaIncidencia?: string;
+  faltasNoCheckInEnDias?: number;
+  cruce?: string;
+  status?: string;
+  penalizationStartDate?: string;
+  penalizationEndDate?: string;
+  originalHours?: number;
+  flota?: string;
+  vacacionesDisfrutadas?: number;
+  vacacionesPendientes?: number;
 }
 
 interface ValidationError {
@@ -238,15 +260,11 @@ export default function ImportEmployeesModal ({
           description: `Se encontraron ${headers.length} columnas en el archivo`,
         });
 
-        // Función para encontrar índice de columna de forma flexible
-        const findColumnIndex = (possibleNames: string[]): number => {
-          for (const name of possibleNames) {
-            const index = headers.findIndex(header =>
-              header && header.toString().toLowerCase().includes(name.toLowerCase()),
-            );
-            if (index !== -1) return index;
-          }
-          return -1;
+        // Función para encontrar índice de columna usando nombres exactos de la plantilla
+        const findColumnIndex = (columnName: string): number => {
+          return headers.findIndex(header =>
+            header && header.toString().toLowerCase() === columnName.toLowerCase()
+          );
         };
 
         // Procesar datos (filas 2 en adelante)
@@ -257,22 +275,44 @@ export default function ImportEmployeesModal ({
           const row = jsonData[i] as (string | number | null)[];
           if (!row || row.every(cell => !cell)) continue; // Fila vacía
 
-          // Mapear columnas de forma flexible
-          const idGlovoIndex = findColumnIndex(['id glovo', 'idglovo', 'id_glovo', 'id', 'idglovo']);
-          const nombreIndex = findColumnIndex(['nombre', 'name', 'first name', 'primer nombre']);
-          const apellidoIndex = findColumnIndex(['apellido', 'last name', 'apellidos', 'surname']);
-          const emailIndex = findColumnIndex(['email personal', 'email', 'correo', 'correo personal', 'email_personal']);
-          const emailGlovoIndex = findColumnIndex(['email glovo', 'email_glovo', 'emailglovo', 'correo glovo', 'correo_glovo']);
-          const telefonoIndex = findColumnIndex(['teléfono', 'telefono', 'phone', 'tel', 'móvil', 'movil']);
-          const dniNieIndex = findColumnIndex(['dni/nie', 'dni', 'nie', 'dni_nie', 'documento', 'nif', 'dninie']);
-          const ibanIndex = findColumnIndex(['iban', 'cuenta bancaria', 'bank account']);
-          const ciudadIndex = findColumnIndex(['ciudad', 'city', 'localidad']);
-          const cityCodeIndex = findColumnIndex(['código ciudad', 'citycode', 'city_code', 'codigo ciudad', 'citycode']);
-          const flotaIndex = findColumnIndex(['flota', 'fleet', 'flota']);
-          const direccionIndex = findColumnIndex(['dirección', 'direccion', 'address', 'domicilio']);
-          const vehiculoIndex = findColumnIndex(['vehículo', 'vehiculo', 'vehicle', 'transporte']);
-          const nafIndex = findColumnIndex(['naf', 'número afiliación', 'numero afiliacion']);
-          const horasIndex = findColumnIndex(['horas', 'hours', 'horas semanales']);
+          // Mapear columnas usando nombres exactos de la plantilla
+          const idGlovoIndex = findColumnIndex('id_glovo');
+          const emailGlovoIndex = findColumnIndex('email_glovo');
+          const turno1Index = findColumnIndex('turno_1');
+          const turno2Index = findColumnIndex('turno_2');
+          const nombreIndex = findColumnIndex('nombre');
+          const apellidoIndex = findColumnIndex('apellido');
+          const telefonoIndex = findColumnIndex('telefono');
+          const emailIndex = findColumnIndex('email');
+          const horasIndex = findColumnIndex('horas');
+          const cdpIndex = findColumnIndex('cdp');
+          const complementariesIndex = findColumnIndex('complementaries');
+          const ciudadIndex = findColumnIndex('ciudad');
+          const cityCodeIndex = findColumnIndex('citycode');
+          const dniNieIndex = findColumnIndex('dni_nie');
+          const ibanIndex = findColumnIndex('iban');
+          const direccionIndex = findColumnIndex('direccion');
+          const vehiculoIndex = findColumnIndex('vehiculo');
+          const nafIndex = findColumnIndex('naf');
+          const fechaAltaSegSocIndex = findColumnIndex('fecha_alta_seg_soc');
+          const statusBajaIndex = findColumnIndex('status_baja');
+          const estadoSsIndex = findColumnIndex('estado_ss');
+          const informadoHorarioIndex = findColumnIndex('informado_horario');
+          const cuentaDiviloIndex = findColumnIndex('cuenta_divilo');
+          const proximaAsignacionSlotsIndex = findColumnIndex('proxima_asignacion_slots');
+          const jefeTraficoIndex = findColumnIndex('jefe_trafico');
+          const comentsJefeDeTraficoIndex = findColumnIndex('coments_jefe_de_trafico');
+          const incidenciasIndex = findColumnIndex('incidencias');
+          const fechaIncidenciaIndex = findColumnIndex('fecha_incidencia');
+          const faltasNoCheckInEnDiasIndex = findColumnIndex('faltas_no_check_in_en_dias');
+          const cruceIndex = findColumnIndex('cruce');
+          const statusIndex = findColumnIndex('status');
+          const penalizationStartDateIndex = findColumnIndex('penalization_start_date');
+          const penalizationEndDateIndex = findColumnIndex('penalization_end_date');
+          const originalHoursIndex = findColumnIndex('original_hours');
+          const flotaIndex = findColumnIndex('flota');
+          const vacacionesDisfrutadasIndex = findColumnIndex('vacaciones_disfrutadas');
+          const vacacionesPendientesIndex = findColumnIndex('vacaciones_pendientes');
 
           // Debug: mostrar mapeo de columnas para la primera fila
           if (i === 1) {
@@ -287,20 +327,42 @@ export default function ImportEmployeesModal ({
 
           const employee: EmployeeData = {
             idGlovo: String(row[idGlovoIndex] || ''),
+            emailGlovo: row[emailGlovoIndex] ? String(row[emailGlovoIndex]) : undefined,
+            turno1: row[turno1Index] ? String(row[turno1Index]) : undefined,
+            turno2: row[turno2Index] ? String(row[turno2Index]) : undefined,
             nombre: String(row[nombreIndex] || ''),
-            apellido: String(row[apellidoIndex] || ''),
-            email: String(row[emailIndex] || ''),
-            emailGlovo: String(row[emailGlovoIndex] || ''),
-            telefono: String(row[telefonoIndex] || ''),
-            dniNie: String(row[dniNieIndex] || ''),
-            iban: String(row[ibanIndex] || ''),
-            ciudad: String(row[ciudadIndex] || ''),
-            cityCode: String(row[cityCodeIndex] || ''),
-            flota: String(row[flotaIndex] || ''),
-            direccion: String(row[direccionIndex] || ''),
-            vehiculo: String(row[vehiculoIndex] || ''),
-            naf: String(row[nafIndex] || ''),
-            horas: Math.round(parseFloat(String(row[horasIndex] || '0')) || 0),
+            apellido: row[apellidoIndex] ? String(row[apellidoIndex]) : undefined,
+            telefono: row[telefonoIndex] ? String(row[telefonoIndex]) : undefined,
+            email: row[emailIndex] ? String(row[emailIndex]) : undefined,
+            horas: row[horasIndex] ? Math.round(parseFloat(String(row[horasIndex])) || 0) : undefined,
+            cdp: row[cdpIndex] ? Math.round(parseFloat(String(row[cdpIndex])) || 0) : undefined,
+            complementaries: row[complementariesIndex] ? String(row[complementariesIndex]) : undefined,
+            ciudad: row[ciudadIndex] ? String(row[ciudadIndex]) : undefined,
+            cityCode: row[cityCodeIndex] ? String(row[cityCodeIndex]) : undefined,
+            dniNie: row[dniNieIndex] ? String(row[dniNieIndex]) : undefined,
+            iban: row[ibanIndex] ? String(row[ibanIndex]) : undefined,
+            direccion: row[direccionIndex] ? String(row[direccionIndex]) : undefined,
+            vehiculo: row[vehiculoIndex] ? String(row[vehiculoIndex]) : undefined,
+            naf: row[nafIndex] ? String(row[nafIndex]) : undefined,
+            fechaAltaSegSoc: row[fechaAltaSegSocIndex] ? String(row[fechaAltaSegSocIndex]) : undefined,
+            statusBaja: row[statusBajaIndex] ? String(row[statusBajaIndex]) : undefined,
+            estadoSs: row[estadoSsIndex] ? String(row[estadoSsIndex]) : undefined,
+            informadoHorario: row[informadoHorarioIndex] ? Boolean(row[informadoHorarioIndex]) : undefined,
+            cuentaDivilo: row[cuentaDiviloIndex] ? String(row[cuentaDiviloIndex]) : undefined,
+            proximaAsignacionSlots: row[proximaAsignacionSlotsIndex] ? String(row[proximaAsignacionSlotsIndex]) : undefined,
+            jefeTrafico: row[jefeTraficoIndex] ? String(row[jefeTraficoIndex]) : undefined,
+            comentsJefeDeTrafico: row[comentsJefeDeTraficoIndex] ? String(row[comentsJefeDeTraficoIndex]) : undefined,
+            incidencias: row[incidenciasIndex] ? String(row[incidenciasIndex]) : undefined,
+            fechaIncidencia: row[fechaIncidenciaIndex] ? String(row[fechaIncidenciaIndex]) : undefined,
+            faltasNoCheckInEnDias: row[faltasNoCheckInEnDiasIndex] ? Math.round(parseFloat(String(row[faltasNoCheckInEnDiasIndex])) || 0) : undefined,
+            cruce: row[cruceIndex] ? String(row[cruceIndex]) : undefined,
+            status: row[statusIndex] ? String(row[statusIndex]) : undefined,
+            penalizationStartDate: row[penalizationStartDateIndex] ? String(row[penalizationStartDateIndex]) : undefined,
+            penalizationEndDate: row[penalizationEndDateIndex] ? String(row[penalizationEndDateIndex]) : undefined,
+            originalHours: row[originalHoursIndex] ? Math.round(parseFloat(String(row[originalHoursIndex])) || 0) : undefined,
+            flota: row[flotaIndex] ? String(row[flotaIndex]) : undefined,
+            vacacionesDisfrutadas: row[vacacionesDisfrutadasIndex] ? parseFloat(String(row[vacacionesDisfrutadasIndex])) || 0 : undefined,
+            vacacionesPendientes: row[vacacionesPendientesIndex] ? parseFloat(String(row[vacacionesPendientesIndex])) || 0 : undefined,
           };
 
           // Validar campos requeridos (solo los más importantes)
