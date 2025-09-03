@@ -7,6 +7,7 @@ class SchedulerService {
   private dailyInterval: ReturnType<typeof setInterval> | null = null;
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   private penalizationInterval: ReturnType<typeof setInterval> | null = null;
+  private lastOrderSyncInterval: ReturnType<typeof setInterval> | null = null;
   private storage: PostgresStorage;
 
   constructor () {
@@ -79,7 +80,24 @@ class SchedulerService {
       }
     }, 60 * 1000); // Verificar cada minuto
 
+    // Sincronización automática de last order cada 6 horas
+    this.lastOrderSyncInterval = setInterval(async () => {
+      try {
+        console.log('🔄 Ejecutando sincronización automática de last order...');
+        const result = await this.storage.syncLastOrderFromCouriers();
+        
+        if (result.updated > 0) {
+          console.log(`✅ Sincronización automática completada: ${result.updated} registros actualizados`);
+        } else {
+          console.log('✅ Sincronización automática completada: sin cambios necesarios');
+        }
+      } catch (error) {
+        console.error('❌ Error en sincronización automática:', error);
+      }
+    }, 6 * 60 * 60 * 1000); // 6 horas en milisegundos
+
     console.log('✅ Programador de tareas iniciado');
+    console.log('⏰ Sincronización automática de last order configurada cada 6 horas');
   }
 
   /**
@@ -230,6 +248,11 @@ class SchedulerService {
     if (this.penalizationInterval) {
       clearInterval(this.penalizationInterval);
       this.penalizationInterval = null;
+    }
+
+    if (this.lastOrderSyncInterval) {
+      clearInterval(this.lastOrderSyncInterval);
+      this.lastOrderSyncInterval = null;
     }
 
     console.log('⏹️ Programador de tareas detenido');

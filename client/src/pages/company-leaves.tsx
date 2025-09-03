@@ -163,15 +163,12 @@ export default function CompanyLeaves () {
         try {
           console.log('🔍 Detectando empleados reactivados...');
           const response = await apiRequest('GET', '/api/employees/reactivated-from-leaves');
-          console.log('📡 Respuesta del endpoint (Response object):', response);
+          console.log('📡 Respuesta del endpoint:', response);
           
-          // Parsear la respuesta JSON
-          const responseData = await response.json();
-          console.log('📡 Respuesta parseada:', responseData);
-          
-          if (responseData && responseData.reactivatedEmployees) {
-            console.log('✅ Empleados reactivados detectados:', responseData.reactivatedEmployees);
-            setReactivatedEmployees(new Set(responseData.reactivatedEmployees));
+          // La respuesta ya está parseada por apiRequest
+          if (response && response.reactivatedEmployees) {
+            console.log('✅ Empleados reactivados detectados:', response.reactivatedEmployees);
+            setReactivatedEmployees(new Set(response.reactivatedEmployees));
           }
         } catch (error) {
           console.error('❌ Error detectando empleados reactivados:', error);

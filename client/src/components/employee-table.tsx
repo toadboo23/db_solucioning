@@ -92,6 +92,7 @@ export default function EmployeeTable ({
                 <TableHead>Flota</TableHead>
                 <TableHead>DNI/NIE</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead>Last Order</TableHead>
                 <TableHead>Horas</TableHead>
                 <TableHead>CDP%</TableHead>
                 <TableHead>Complementarias</TableHead>
@@ -129,6 +130,33 @@ export default function EmployeeTable ({
                     {employee.dniNie || 'N/A'}
                   </TableCell>
                   <TableCell>{getStatusBadge(employee.status, employee)}</TableCell>
+                  <TableCell>
+                    {employee.lastOrder ? (
+                      <span className="text-sm text-gray-600">
+                        {(() => {
+                          try {
+                            // Parsear el formato: 2025-08-28 21:30:48.0
+                            const date = new Date(employee.lastOrder);
+                            if (isNaN(date.getTime())) {
+                              return 'Formato inválido';
+                            }
+                            
+                            return date.toLocaleDateString('es-ES', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            });
+                          } catch (error) {
+                            return 'Error';
+                          }
+                        })()}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-400">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {(() => {
                       const hasScheduledPenalization = employee.penalizationStartDate && 
