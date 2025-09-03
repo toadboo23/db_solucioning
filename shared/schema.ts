@@ -104,6 +104,7 @@ export const employees = pgTable('employees', {
   penalizationEndDate: date('penalization_end_date'),
   originalHours: integer('original_hours'),
   flota: varchar('flota', { length: 100 }),
+  lastOrder: varchar('last_order', { length: 50 }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   vacacionesDisfrutadas: numeric('vacaciones_disfrutadas', { precision: 6, scale: 2 }).default('0.00'),
@@ -178,6 +179,14 @@ export const auditLogs = pgTable('audit_logs', {
   index('idx_audit_entity_type').on(table.entityType),
   index('idx_audit_created_at').on(table.createdAt),
 ]);
+
+// Tabla de control de sincronización
+export const syncControl = pgTable('sync_control', {
+  id: serial('id').primaryKey(),
+  lastSync: timestamp('last_sync').defaultNow(),
+  recordsUpdated: integer('records_updated').default(0),
+  syncType: varchar('sync_type', { length: 50 }).default('last_order'),
+});
 
 // Tabla de historial de bajas (IT y Empresa)
 export const employeeLeaveHistory = pgTable('employee_leave_history', {
@@ -315,6 +324,10 @@ export type UpdateCityHoursRequirement = Partial<InsertCityHoursRequirement>;
 // City hours requirements history types
 export type CityHoursRequirementHistory = typeof cityHoursRequirementsHistory.$inferSelect;
 export type InsertCityHoursRequirementHistory = typeof cityHoursRequirementsHistory.$inferInsert;
+
+// Sync control types
+export type SyncControl = typeof syncControl.$inferSelect;
+export type InsertSyncControl = typeof syncControl.$inferInsert;
 
 // Captation dashboard types
 export interface CaptationDashboardData {

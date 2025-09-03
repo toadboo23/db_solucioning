@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { eq, and, sql, desc, isNotNull, lt, inArray, or, ne, selectDistinct } from 'drizzle-orm';
+import { eq, and, sql, desc, isNotNull, lt, inArray, or, ne } from 'drizzle-orm';
 import {
   systemUsers,
   auditLogs,
@@ -629,7 +629,6 @@ export class PostgresStorage {
         .filter(flota => flota && flota.trim() !== '')
         .sort();
 
-      console.log(`✅ Se encontraron ${fleets.length} flotas únicas en la base de datos:`, fleets);
       return fleets;
     } catch (error) {
       console.error('❌ Error obteniendo flotas únicas:', error);
@@ -886,48 +885,111 @@ export class PostgresStorage {
   }
 
   async reactivateEmployee (employeeId: string, reactivatedBy?: string): Promise<Employee> {
-    // Obtener el empleado actual antes de la reactivación
-    const [currentEmployee] = await db
-      .select()
-      .from(employees)
-      .where(eq(employees.idGlovo, employeeId));
-    
-    if (!currentEmployee) {
-      throw new Error(`Employee with ID ${employeeId} not found`);
-    }
-    
-    // Verificar si el empleado está en baja IT o baja empresa
-    if (currentEmployee.status !== 'it_leave' && currentEmployee.status !== 'company_leave_approved') {
-      throw new Error(`Employee ${employeeId} is not in IT leave or company leave status`);
-    }
-    
-    // Preparar los datos de actualización
-    const updateData: Record<string, unknown> = {
-      status: 'active',
-      updatedAt: new Date(),
-    };
-    
-    // Si tiene horas originales guardadas, restaurarlas
-    if (currentEmployee.originalHours !== null) {
-      const leaveType = currentEmployee.status === 'it_leave' ? 'IT leave' : 'company leave';
-      console.log(`🔄 Reactivating employee ${employeeId} from ${leaveType}. Restoring hours from ${currentEmployee.horas} to ${currentEmployee.originalHours}`);
-      updateData.horas = currentEmployee.originalHours;
-      updateData.originalHours = null; // Limpiar las horas originales
-    }
-    
-    // Actualizar el empleado
-    const [employee] = await db
-      .update(employees)
-      .set(updateData)
-      .where(eq(employees.idGlovo, employeeId))
-      .returning();
+    try {
+      // Obtener el empleado actual antes de la reactivación
+      const [currentEmployee] = await db
+        .select()
+        .from(employees)
+        .where(eq(employees.idGlovo, employeeId));
+      
+      // Si el empleado no existe en employees, verificar si está en company_leaves
+      if (!currentEmployee) {
+        const [leaveRecord] = await db
+          .select()
+          .from(companyLeaves)
+          .where(eq(companyLeaves.employeeId, employeeId))
+          .orderBy(desc(companyLeaves.createdAt))
+          .limit(1);
+        
+        if (!leaveRecord) {
+          throw new Error(`Employee with ID ${employeeId} not found in employees or company_leaves`);
+        }
+        
+        // Extraer datos del empleado desde company_leaves
+        const employeeData = leaveRecord.employeeData as any;
+        if (!employeeData) {
+          throw new Error(`No employee data found for ${employeeId} in company_leaves`);
+        }
+        
+        // Crear el empleado en la tabla employees
+        const [newEmployee] = await db
+          .insert(employees)
+          .values({
+            idGlovo: employeeId,
+            nombre: employeeData.nombre || 'Sin nombre',
+            apellido: employeeData.apellido || '',
+            emailGlovo: employeeData.emailGlovo || '',
+            turno1: employeeData.turno || employeeData.turno1 || '',
+            telefono: employeeData.telefono || '',
+            email: employeeData.email || '',
+            horas: employeeData.horas || 0,
+            cdp: employeeData.cdp || 0,
+            complementaries: employeeData.complementaries || 0,
+            ciudad: employeeData.ciudad || '',
+            citycode: employeeData.cityCode || '',
+            dniNie: employeeData.dniNie || '',
+            iban: employeeData.iban || '',
+            vehiculo: employeeData.vehiculo || '',
+            naf: employeeData.naf || '',
+            fechaAltaSegSoc: employeeData.fechaAltaSegSoc ? new Date(employeeData.fechaAltaSegSoc) : null,
+            status: 'active',
+            flota: employeeData.flota || '',
+            vacacionesDisfrutadas: employeeData.vacacionesDisfrutadas || 0,
+            vacacionesPendientes: employeeData.vacacionesPendientes || 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .returning();
+        
+        // Actualizar el estado en company_leaves a 'reactivated'
+        await db
+          .update(companyLeaves)
+          .set({ 
+            status: 'reactivated',
+            updatedAt: new Date()
+          })
+          .where(eq(companyLeaves.employeeId, employeeId));
+        
+        console.log(`✅ Employee ${employeeId} reactivated from company_leaves and created in employees`);
+        return newEmployee;
+      }
+      
+      // Verificar si el empleado está en baja IT o baja empresa
+      if (currentEmployee.status !== 'it_leave' && currentEmployee.status !== 'company_leave_approved') {
+        throw new Error(`Employee ${employeeId} is not in IT leave or company leave status`);
+      }
+      
+      // Preparar los datos de actualización
+      const updateData: Record<string, unknown> = {
+        status: 'active',
+        updatedAt: new Date(),
+      };
+      
+      // Si tiene horas originales guardadas, restaurarlas
+      if (currentEmployee.originalHours !== null) {
+        const leaveType = currentEmployee.status === 'it_leave' ? 'IT leave' : 'company leave';
+        console.log(`🔄 Reactivating employee ${employeeId} from ${leaveType}. Restoring hours from ${currentEmployee.horas} to ${currentEmployee.originalHours}`);
+        updateData.horas = currentEmployee.originalHours;
+        updateData.originalHours = null; // Limpiar las horas originales
+      }
+      
+      // Actualizar el empleado
+      const [employee] = await db
+        .update(employees)
+        .set(updateData)
+        .where(eq(employees.idGlovo, employeeId))
+        .returning();
 
-    // Log de reactivación (sin actualizar campos en company_leaves)
-    if (currentEmployee.status === 'company_leave_approved') {
-      console.log(`✅ Employee ${employeeId} reactivated from company leave`);
+      // Log de reactivación (sin actualizar campos en company_leaves)
+      if (currentEmployee.status === 'company_leave_approved') {
+        console.log(`✅ Employee ${employeeId} reactivated from company leave`);
+      }
+      
+      return employee;
+    } catch (error) {
+      console.error(`❌ Error reactivating employee ${employeeId}:`, error);
+      throw error;
     }
-    
-    return employee;
   }
 
   // Obtener empleados ya reactivados desde bajas empresa
@@ -1561,6 +1623,180 @@ export class PostgresStorage {
       console.error('Error getting city current hours:', error);
       throw error;
     }
+  }
+
+  // Sincronización de last_order desde couriers_export
+  async syncLastOrderFromCouriers(): Promise<{ updated: number; errors: string[] }> {
+    try {
+      // Verificar si ya se sincronizó en las últimas 6 horas
+      const lastSyncCheck = await db.execute(
+        sql`SELECT last_sync FROM sync_control WHERE sync_type = 'last_order' LIMIT 1`
+      );
+      
+      if (lastSyncCheck.rows.length > 0) {
+        const lastSync = new Date(String(lastSyncCheck.rows[0].last_sync));
+        const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+        
+        if (lastSync > sixHoursAgo) {
+          console.log('Last order sync skipped - already synced within 6 hours');
+          return { updated: 0, errors: ['Already synced within 6 hours'] };
+        }
+      }
+      
+      // Ejecutar sincronización
+      const result = await db.execute(
+        sql`SELECT sync_last_order_from_couriers() as updated_count`
+      );
+      
+      const updated = Number(result.rows[0]?.updated_count) || 0;
+      
+      // Actualizar control de sincronización
+      await db.execute(
+        sql`UPDATE sync_control SET last_sync = NOW(), records_updated = ${updated} WHERE sync_type = 'last_order'`
+      );
+      
+      console.log(`✅ Last order sync completed: ${updated} records updated`);
+      return { updated, errors: [] };
+    } catch (error) {
+      console.error('❌ Error syncing last order:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      return { updated: 0, errors: [errorMessage] };
+    }
+  }
+
+  // Importación de CSV de Fleet a couriers_export
+  async importFleetFromCSV(csvBuffer: Buffer): Promise<{ imported: number; errors: string[] }> {
+    try {
+      // Convertir el buffer a string
+      const csvContent = csvBuffer.toString('utf-8');
+      const lines = csvContent.split('\n');
+      
+      if (lines.length < 2) {
+        throw new Error('El archivo CSV debe tener al menos una fila de encabezados y una fila de datos');
+      }
+      
+      // Obtener encabezados
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      
+      // Verificar que los encabezados requeridos estén presentes
+      const requiredHeaders = ['Courier ID', 'Platform', 'Status', 'Courier name', 'Last order date'];
+      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+      
+      if (missingHeaders.length > 0) {
+        throw new Error(`Encabezados requeridos faltantes: ${missingHeaders.join(', ')}`);
+      }
+      
+      // TRUNCATE de la tabla couriers_export
+      await db.execute(sql`TRUNCATE TABLE couriers_export`);
+      
+      // Procesar líneas de datos (excluyendo la primera línea de encabezados)
+      const dataLines = lines.slice(1).filter(line => line.trim() !== '');
+      
+      let imported = 0;
+      const errors: string[] = [];
+      
+      // Procesar en lotes para mejor rendimiento
+      const batchSize = 100;
+      for (let i = 0; i < dataLines.length; i += batchSize) {
+        const batch = dataLines.slice(i, i + batchSize);
+        const batchData: any[] = [];
+        
+        for (const line of batch) {
+          try {
+            // Parsear línea CSV (manejar comas dentro de campos entre comillas)
+            const values = this.parseCSVLine(line);
+            
+            if (values.length >= headers.length) {
+              const row: any = {};
+              headers.forEach((header, index) => {
+                row[header] = values[index]?.trim() || '';
+              });
+              batchData.push(row);
+            }
+          } catch (lineError) {
+            const errorMessage = lineError instanceof Error ? lineError.message : 'Error desconocido';
+            errors.push(`Línea ${i + batch.length + 1}: ${errorMessage}`);
+          }
+        }
+        
+        if (batchData.length > 0) {
+          try {
+            // Insertar lote en la base de datos
+            const insertQuery = sql`
+              INSERT INTO couriers_export (
+                "Courier ID", "Platform", "Status", "Courier name", "Transport", 
+                "Phone number", "Email", "Start date", "City code", "Cash balance", 
+                "Kickouts", "Reassignments", "Booked slots", "Unbooked slots", 
+                "Delivered orders", "Bad ratings", "Average delivery time (min)", 
+                "Earnings glovo", "Earnings tips", "Earnings KM", "Total hours worked", 
+                "Canceled orders", "% reassignments", "% attendance", "Kms driven", 
+                "Last order date", "Hours Delivering"
+              ) VALUES ${sql.join(
+                batchData.map(row => sql`(
+                  ${row['Courier ID']}, ${row['Platform']}, ${row['Status']}, 
+                  ${row['Courier name']}, ${row['Transport'] || ''}, 
+                  ${row['Phone number'] || ''}, ${row['Email'] || ''}, 
+                  ${row['Start date'] || ''}, ${row['City code'] || ''}, 
+                  ${row['Cash balance'] || '0'}, ${row['Kickouts'] || '0'}, 
+                  ${row['Reassignments'] || '0'}, ${row['Booked slots'] || '0'}, 
+                  ${row['Unbooked slots'] || '0'}, ${row['Delivered orders'] || '0'}, 
+                  ${row['Bad ratings'] || '0'}, ${row['Average delivery time (min)'] || '0'}, 
+                  ${row['Earnings glovo'] || '0'}, ${row['Earnings tips'] || '0'}, 
+                  ${row['Earnings KM'] || '0'}, ${row['Total hours worked'] || '0'}, 
+                  ${row['Canceled orders'] || '0'}, ${row['% reassignments'] || '0'}, 
+                  ${row['% attendance'] || '0'}, ${row['Kms driven'] || '0'}, 
+                  ${row['Last order date'] || ''}, ${row['Hours Delivering'] || '0'}
+                )`),
+                sql`, `
+              )}
+            `;
+            
+            await db.execute(insertQuery);
+            imported += batchData.length;
+          } catch (batchError) {
+            console.error('❌ Error insertando lote:', batchError);
+            const errorMessage = batchError instanceof Error ? batchError.message : 'Error desconocido';
+            errors.push(`Error en lote ${Math.floor(i / batchSize) + 1}: ${errorMessage}`);
+          }
+        }
+      }
+      
+      if (errors.length > 0) {
+        console.log(`⚠️ Errores encontrados: ${errors.length}`);
+      }
+      
+      return { imported, errors };
+    } catch (error) {
+      console.error('❌ Error en importación de CSV:', error);
+      if (error instanceof Error) {
+        throw error;
+      } else {
+        throw new Error('Error desconocido en importación de CSV');
+      }
+    }
+  }
+
+  // Función auxiliar para parsear líneas CSV
+  private parseCSVLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    result.push(current);
+    return result.map(field => field.replace(/^"|"$/g, ''));
   }
 
 }

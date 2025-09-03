@@ -3,7 +3,7 @@ import { createServer, type Server } from 'http';
 import { PostgresStorage, getEmpleadoMetadata } from './storage-postgres.js';
 import { setupAuth, isAuthenticated } from './auth-local.js';
 import { AuditService } from './audit-service.js';
-import * as XLSX from 'xlsx';
+import multer from 'multer';
 
 // Extender la interfaz Request para incluir el usuario
 declare global {
@@ -22,6 +22,21 @@ declare global {
 }
 
 const storage = new PostgresStorage();
+
+// Configuración de multer para archivos CSV
+const upload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten archivos CSV'));
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB máximo
+  },
+});
 
 export async function registerRoutes (app: Express): Promise<Server> {
   if (process.env.NODE_ENV !== 'production') console.log('🚀 Setting up routes...');
@@ -1396,7 +1411,7 @@ export async function registerRoutes (app: Express): Promise<Server> {
       }
 
       // Hash the new password
-      const bcrypt = await import('bcrypt');
+      const bcrypt = await import('bcryptjs');
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
 
@@ -1505,8 +1520,20 @@ export async function registerRoutes (app: Express): Promise<Server> {
         return res.status(403).json({ message: 'No tienes permisos para exportar empleados' });
       }
 
-      const employees = await storage.getAllEmployees();
+      // Obtener todos los empleados usando el método existente
+      let employees = await storage.getAllEmployees();
       
+      // Ordenar por created_at DESC como se solicitó
+      employees = employees.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA; // DESC
+      });
+      
+      if (!employees || employees.length === 0) {
+        return res.status(404).json({ message: 'No se encontraron empleados para exportar' });
+      }
+
       // Log export action
       await AuditService.logAction({
         userId: user.email || '',
@@ -1517,13 +1544,10 @@ export async function registerRoutes (app: Express): Promise<Server> {
         newData: { exportType: 'csv', employeeCount: employees.length },
       });
 
-      // Set headers for CSV download
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename="empleados_${new Date().toISOString().split('T')[0]}.csv"`);
-
-      // Create CSV content
+      // Convertir datos a CSV con solo los campos exactos de employees + last_order como segunda columna
       const csvHeaders = [
         'ID Glovo',
+        'Last Order', // Campo Last Order como segunda columna
         'Email Glovo',
         'Turno 1',
         'Turno 2',
@@ -1533,7 +1557,7 @@ export async function registerRoutes (app: Express): Promise<Server> {
         'Email',
         'Horas',
         'CDP',
-        'Complementarias',
+        'Complementarios',
         'Ciudad',
         'City Code',
         'DNI/NIE',
@@ -1541,860 +1565,88 @@ export async function registerRoutes (app: Express): Promise<Server> {
         'Dirección',
         'Vehículo',
         'NAF',
-        'Fecha Alta Seg Soc',
+        'Fecha Alta Seg. Social',
         'Status Baja',
         'Estado SS',
         'Informado Horario',
         'Cuenta Divilo',
         'Próxima Asignación Slots',
         'Jefe Tráfico',
-        'Comentarios Jefe Tráfico',
+        'Comentarios Jefe de Tráfico',
         'Incidencias',
         'Fecha Incidencia',
-        'Faltas No Check In',
+        'Faltas No Check In En Días',
         'Cruce',
         'Status',
-        'Fecha Inicio Penalización',
-        'Fecha Fin Penalización',
+        'Penalización Fecha Inicio',
+        'Penalización Fecha Fin',
         'Horas Originales',
+        'Flota',
+        'Created At',
+        'Updated At',
         'Vacaciones Disfrutadas',
-        'Vacaciones Pendientes',
-      ].join(',');
-
-      const csvRows = employees.map(emp => [
-        emp.idGlovo,
-        emp.emailGlovo || '',
-        emp.turno1 || '',
-        emp.turno2 || '',
-        emp.nombre,
-        emp.apellido || '',
-        emp.telefono || '',
-        emp.email || '',
-        emp.horas || '',
-        emp.cdp || '',
-        emp.complementaries || '',
-        emp.ciudad || '',
-        emp.cityCode || '',
-        emp.dniNie || '',
-        emp.iban || '',
-        emp.direccion || '',
-        emp.vehiculo || '',
-        emp.naf || '',
-        emp.fechaAltaSegSoc || '',
-        emp.statusBaja || '',
-        emp.estadoSs || '',
-        emp.informadoHorario ? 'Sí' : 'No',
-        emp.cuentaDivilo || '',
-        emp.proximaAsignacionSlots || '',
-        emp.jefeTrafico || '',
-        emp.comentsJefeDeTrafico || '',
-        emp.incidencias || '',
-        emp.fechaIncidencia || '',
-        emp.faltasNoCheckInEnDias || '',
-        emp.cruce || '',
-        emp.status,
-        emp.penalizationStartDate || '',
-        emp.penalizationEndDate || '',
-        emp.originalHours || '',
-        typeof emp.vacacionesDisfrutadas !== 'undefined' ? Number(emp.vacacionesDisfrutadas).toFixed(2) : '',
-        typeof emp.vacacionesPendientes !== 'undefined' ? Number(emp.vacacionesPendientes).toFixed(2) : '',
-      ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(','));
-
-      const csvContent = [csvHeaders, ...csvRows].join('\n');
-      res.send(csvContent);
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error exporting employees to CSV:', error);
-      res.status(500).json({ message: 'Failed to export employees' });
-    }
-  });
-
-  // Export employees to Excel (protected - admin/super_admin only)
-  app.get('/api/employees/export/excel', isAuthenticated, async (req: any, res) => {
-    if (process.env.NODE_ENV !== 'production') console.log('📤 Export employees to Excel request');
-    try {
-      const user = req.user as { email?: string; role?: string };
-      if (user?.role === 'normal') {
-        return res.status(403).json({ message: 'No tienes permisos para exportar empleados' });
-      }
-
-      // Obtener parámetros de filtro
-      const { city, status, search } = req.query;
-      
-      let employees = await storage.getAllEmployees();
-      
-      // Aplicar filtros si se proporcionan
-      if (city && city !== 'all') {
-        employees = employees.filter(emp => emp.ciudad === city);
-      }
-      
-      if (status && status !== 'all') {
-        employees = employees.filter(emp => emp.status === status);
-      }
-      
-      if (search) {
-        const searchLower = search.toLowerCase();
-        employees = employees.filter(emp => 
-          emp.nombre?.toLowerCase().includes(searchLower) ||
-          emp.apellido?.toLowerCase().includes(searchLower) ||
-          emp.idGlovo?.toLowerCase().includes(searchLower) ||
-          emp.emailGlovo?.toLowerCase().includes(searchLower) ||
-          emp.email?.toLowerCase().includes(searchLower)
-        );
-      }
-      
-      // Log export action
-      await AuditService.logAction({
-        userId: user.email || '',
-        userRole: (user.role as 'super_admin' | 'admin') || 'normal',
-        action: 'export_employees_excel',
-        entityType: 'employee',
-        description: `Exportación de empleados a Excel - Usuario: ${user.email} - Total: ${employees.length} empleados`,
-        newData: { exportType: 'excel', employeeCount: employees.length },
-      });
-
-      // Prepare data for Excel export with Spanish column names
-      const excelData = employees.map(emp => {
-        const isGlovoEmail = emp.emailGlovo?.includes('@solucioning.net');
-        const isPersonalEmail = emp.email && !emp.email.includes('@solucioning.net');
-        return {
-          // Información Básica
-          'ID Glovo': emp.idGlovo,
-          'Email Glovo': isGlovoEmail ? emp.emailGlovo : '',
-          'Turno 1': emp.turno1,
-          'Turno 2': emp.turno2,
-          'Nombre': emp.nombre,
-          'Apellido': emp.apellido,
-          'Teléfono': emp.telefono,
-          'Email Personal': isPersonalEmail ? emp.email : '',
-          
-          // Información Laboral
-          'Horas': emp.horas,
-          'CDP': emp.cdp,
-          'CDP%': emp.horas ? ((emp.horas / 38) * 100).toFixed(2) : null,
-          'Complementarios': emp.complementaries,
-          'Departamento': emp.departamento,
-          'Puesto': emp.puesto,
-          'Supervisor': emp.supervisor,
-          
-          // Información de Ubicación
-          'Ciudad': emp.ciudad,
-          'Estado': emp.estado,
-          'Código Postal': emp.codigoPostal,
-          'Dirección': emp.direccion,
-          
-          // Información Personal
-          'Fecha Nacimiento': emp.fechaNacimiento ? new Date(emp.fechaNacimiento).toLocaleDateString('es-ES') : '',
-          'Fecha Contratación': emp.fechaContratacion ? new Date(emp.fechaContratacion).toLocaleDateString('es-ES') : '',
-          'Salario': emp.salario,
-          
-          // Documentos de Identidad
-          'DNI/NIE': emp.dniNie,
-          'IBAN': emp.iban,
-          'Seguro Social': emp.seguroSocial,
-          'RFC': emp.rfc,
-          'CURP': emp.curp,
-          'INE': emp.ine,
-          'Licencia Conducir': emp.licenciaConducir,
-          
-          // Información Vehicular
-          'Vehículo': emp.vehiculo,
-          'NAF': emp.naf,
-          
-          // Información de Seguridad Social
-          'Fecha Alta Seg. Social': emp.fechaAltaSegSoc ? new Date(emp.fechaAltaSegSoc).toLocaleDateString('es-ES') : '',
-          'Status Baja': emp.statusBaja,
-          'Estado SS': emp.estadoSs,
-          
-          // Información de Horarios
-          'Informado Horario': emp.informadoHorario ? 'Sí' : 'No',
-          'Cuenta Divilo': emp.cuentaDivilo,
-          'Próxima Asignación Slots': emp.proximaAsignacionSlots ? new Date(emp.proximaAsignacionSlots).toLocaleDateString('es-ES') : '',
-          'Jefe de Tráfico': emp.jefeTrafico,
-          'Flota': emp.flota || '',
-          'Comentarios Jefe Tráfico': emp.comentsJefeDeTrafico,
-          
-          // Información de Emergencia
-          'Emergencia Nombre': emp.emergenciaNombre,
-          'Emergencia Teléfono': emp.emergenciaTelefono,
-          'Emergencia Relación': emp.emergenciaRelacion,
-          
-          // Información de Incidencias
-          'Incidencias': emp.incidencias,
-          'Fecha Incidencia': emp.fechaIncidencia ? new Date(emp.fechaIncidencia).toLocaleDateString('es-ES') : '',
-          'Faltas No Check-in (días)': emp.faltasNoCheckInEnDias,
-          'Cruce': emp.cruce,
-          
-          // Estado y Penalizaciones
-          'Estado': emp.status === 'active' ? 'Activo' :
-            emp.status === 'it_leave' ? 'Baja IT' :
-              emp.status === 'company_leave_pending' ? 'Baja Empresa Pendiente' :
-                emp.status === 'company_leave_approved' ? 'Baja Empresa Aprobada' : emp.status,
-          'Fecha Inicio Penalización': emp.penalizationStartDate ? new Date(emp.penalizationStartDate).toLocaleDateString('es-ES') : '',
-          'Fecha Fin Penalización': emp.penalizationEndDate ? new Date(emp.penalizationEndDate).toLocaleDateString('es-ES') : '',
-          'Horas Originales': emp.originalHours,
-          
-          // Vacaciones
-          'Vacaciones Disfrutadas': typeof emp.vacacionesDisfrutadas !== 'undefined' ? Number(emp.vacacionesDisfrutadas).toFixed(2) : '',
-          'Vacaciones Pendientes': typeof emp.vacacionesPendientes !== 'undefined' ? Number(emp.vacacionesPendientes).toFixed(2) : '',
-          
-          // Información de Desarrollo
-          'Certificaciones': emp.certificaciones,
-          'Habilidades': emp.habilidades,
-          'Idiomas': emp.idiomas,
-          'Experiencia Anterior': emp.experienciaAnterior,
-          'Educación': emp.educacion,
-          'Referencias': emp.referencias,
-          'Evaluaciones': emp.evaluaciones,
-          'Capacitaciones': emp.capacitaciones,
-          'Ausencias': emp.ausencias,
-          'Incidentes': emp.incidentes,
-          'Reconocimientos': emp.reconocimientos,
-          'Metas': emp.metas,
-          'Plan Desarrollo': emp.planDesarrollo,
-          'Comentarios Supervisor': emp.comentariosSupervisor,
-          'Comentarios HR': emp.comentariosHr,
-          
-          // Información de Revisión
-          'Fecha Revisión': emp.fechaRevision ? new Date(emp.fechaRevision).toLocaleDateString('es-ES') : '',
-          'Próxima Revisión': emp.proximaRevision ? new Date(emp.proximaRevision).toLocaleDateString('es-ES') : '',
-          
-          // Información de Contrato
-          'Estado Contratación': emp.estadoContratacion,
-          'Tipo Contrato': emp.tipoContrato,
-          'Fecha Fin Contrato': emp.fechaFinContrato ? new Date(emp.fechaFinContrato).toLocaleDateString('es-ES') : '',
-          'Periodo Prueba': emp.periodoPrueba ? 'Sí' : 'No',
-          'Fecha Fin Prueba': emp.fechaFinPrueba ? new Date(emp.fechaFinPrueba).toLocaleDateString('es-ES') : '',
-          
-          // Información de Terminación
-          'Motivo Terminación': emp.motivoTerminacion,
-          'Fecha Terminación': emp.fechaTerminacion ? new Date(emp.fechaTerminacion).toLocaleDateString('es-ES') : '',
-          'Documentos Entregados': emp.documentosEntregados,
-          'Equipo Devuelto': emp.equipoDevuelto,
-          'Entrevista Salida': emp.entrevistaSalida,
-          'Recomendación Recontratación': emp.recomendacionRecontratacion ? 'Sí' : 'No',
-          'Comentarios Salida': emp.comentariosSalida,
-          
-          // Información del Sistema
-          'Activo': emp.activo ? 'Sí' : 'No',
-          'Notas': emp.notas,
-          'Foto URL': emp.fotoUrl,
-          'Documentos URL': emp.documentosUrl,
-          'Fecha Creación': emp.createdAt ? new Date(emp.createdAt).toLocaleDateString('es-ES') : '',
-          'Última Actualización': emp.updatedAt ? new Date(emp.updatedAt).toLocaleDateString('es-ES') : '',
-        };
-      });
-
-      // Create Excel workbook
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(excelData);
-
-      // Set column widths for better readability
-      const columnWidths = [
-        // Información Básica
-        { wch: 12 }, // ID Glovo
-        { wch: 25 }, // Email Glovo
-        { wch: 10 }, // Turno 1
-        { wch: 10 }, // Turno 2
-        { wch: 15 }, // Nombre
-        { wch: 15 }, // Apellido
-        { wch: 15 }, // Teléfono
-        { wch: 25 }, // Email Personal
-        
-        // Información Laboral
-        { wch: 8 },  // Horas
-        { wch: 10 }, // CDP
-        { wch: 10 }, // CDP%
-        { wch: 15 }, // Complementarios
-        { wch: 15 }, // Departamento
-        { wch: 15 }, // Puesto
-        { wch: 20 }, // Supervisor
-        
-        // Información de Ubicación
-        { wch: 15 }, // Ciudad
-        { wch: 12 }, // Estado
-        { wch: 12 }, // Código Postal
-        { wch: 30 }, // Dirección
-        
-        // Información Personal
-        { wch: 15 }, // Fecha Nacimiento
-        { wch: 15 }, // Fecha Contratación
-        { wch: 12 }, // Salario
-        
-        // Documentos de Identidad
-        { wch: 15 }, // DNI/NIE
-        { wch: 25 }, // IBAN
-        { wch: 15 }, // Seguro Social
-        { wch: 15 }, // RFC
-        { wch: 15 }, // CURP
-        { wch: 15 }, // INE
-        { wch: 20 }, // Licencia Conducir
-        
-        // Información Vehicular
-        { wch: 12 }, // Vehículo
-        { wch: 15 }, // NAF
-        
-        // Información de Seguridad Social
-        { wch: 20 }, // Fecha Alta Seg. Social
-        { wch: 15 }, // Status Baja
-        { wch: 12 }, // Estado SS
-        
-        // Información de Horarios
-        { wch: 15 }, // Informado Horario
-        { wch: 20 }, // Cuenta Divilo
-        { wch: 25 }, // Próxima Asignación Slots
-        { wch: 20 }, // Jefe de Tráfico
-        { wch: 10 }, // Flota
-        { wch: 30 }, // Comentarios Jefe Tráfico
-        
-        // Información de Emergencia
-        { wch: 20 }, // Emergencia Nombre
-        { wch: 15 }, // Emergencia Teléfono
-        { wch: 15 }, // Emergencia Relación
-        
-        // Información de Incidencias
-        { wch: 20 }, // Incidencias
-        { wch: 20 }, // Fecha Incidencia
-        { wch: 20 }, // Faltas No Check-in (días)
-        { wch: 10 }, // Cruce
-        
-        // Estado y Penalizaciones
-        { wch: 15 }, // Estado
-        { wch: 20 }, // Fecha Inicio Penalización
-        { wch: 20 }, // Fecha Fin Penalización
-        { wch: 15 }, // Horas Originales
-        
-        // Vacaciones
-        { wch: 20 }, // Vacaciones Disfrutadas
-        { wch: 20 }, // Vacaciones Pendientes
-        
-        // Información de Desarrollo
-        { wch: 20 }, // Certificaciones
-        { wch: 20 }, // Habilidades
-        { wch: 15 }, // Idiomas
-        { wch: 25 }, // Experiencia Anterior
-        { wch: 20 }, // Educación
-        { wch: 20 }, // Referencias
-        { wch: 20 }, // Evaluaciones
-        { wch: 20 }, // Capacitaciones
-        { wch: 20 }, // Ausencias
-        { wch: 20 }, // Incidentes
-        { wch: 20 }, // Reconocimientos
-        { wch: 15 }, // Metas
-        { wch: 20 }, // Plan Desarrollo
-        { wch: 25 }, // Comentarios Supervisor
-        { wch: 20 }, // Comentarios HR
-        
-        // Información de Revisión
-        { wch: 20 }, // Fecha Revisión
-        { wch: 20 }, // Próxima Revisión
-        
-        // Información de Contrato
-        { wch: 20 }, // Estado Contratación
-        { wch: 15 }, // Tipo Contrato
-        { wch: 20 }, // Fecha Fin Contrato
-        { wch: 15 }, // Periodo Prueba
-        { wch: 20 }, // Fecha Fin Prueba
-        
-        // Información de Terminación
-        { wch: 25 }, // Motivo Terminación
-        { wch: 20 }, // Fecha Terminación
-        { wch: 25 }, // Documentos Entregados
-        { wch: 20 }, // Equipo Devuelto
-        { wch: 20 }, // Entrevista Salida
-        { wch: 25 }, // Recomendación Recontratación
-        { wch: 25 }, // Comentarios Salida
-        
-        // Información del Sistema
-        { wch: 10 }, // Activo
-        { wch: 30 }, // Notas
-        { wch: 30 }, // Foto URL
-        { wch: 30 }, // Documentos URL
-        { wch: 15 }, // Fecha Creación
-        { wch: 20 }, // Última Actualización
+        'Vacaciones Pendientes'
       ];
-      ws['!cols'] = columnWidths;
 
-      // Aplicar estilos a los headers
-      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-      for (let col = range.s.c; col <= range.e.c; col++) {
-        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-        if (!ws[cellAddress]) ws[cellAddress] = { t: 's', v: '' };
-        ws[cellAddress].s = {
-          font: { bold: true, color: { rgb: 'FFFFFF' } },
-          fill: { fgColor: { rgb: '4472C4' } },
-          alignment: { horizontal: 'center', vertical: 'center' },
-        };
-      }
+      // Crear filas CSV con los campos exactos de employees
+      const csvRows = employees.map(employee => [
+        employee.idGlovo || '',
+        employee.lastOrder || '', // Campo Last Order como segunda columna
+        employee.emailGlovo || '',
+        employee.turno1 || '',
+        employee.turno2 || '',
+        employee.nombre || '',
+        employee.apellido || '',
+        employee.telefono || '',
+        employee.email || '',
+        employee.horas || '',
+        employee.cdp || '',
+        employee.complementaries || '',
+        employee.ciudad || '',
+        employee.cityCode || '',
+        employee.dniNie || '',
+        employee.iban || '',
+        employee.direccion || '',
+        employee.vehiculo || '',
+        employee.naf || '',
+        employee.fechaAltaSegSoc || '',
+        employee.statusBaja || '',
+        employee.estadoSs || '',
+        employee.informadoHorario ? 'Sí' : 'No',
+        employee.cuentaDivilo || '',
+        employee.proximaAsignacionSlots || '',
+        employee.jefeTrafico || '',
+        employee.comentsJefeDeTrafico || '',
+        employee.incidencias || '',
+        employee.fechaIncidencia || '',
+        employee.faltasNoCheckInEnDias || '',
+        employee.cruce || '',
+        employee.status || '',
+        employee.penalizationStartDate || '',
+        employee.penalizationEndDate || '',
+        employee.originalHours || '',
+        employee.flota || '',
+        employee.createdAt || '',
+        employee.updatedAt || '',
+        employee.vacacionesDisfrutadas || '',
+        employee.vacacionesPendientes || ''
+      ].map(field => `"${field}"`));
 
-      // Aplicar estilos a las filas de datos (alternando colores)
-      for (let row = 1; row <= range.e.r; row++) {
-        for (let col = range.s.c; col <= range.e.c; col++) {
-          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
-          if (ws[cellAddress]) {
-            ws[cellAddress].s = {
-              fill: { fgColor: { rgb: row % 2 === 0 ? 'F2F2F2' : 'FFFFFF' } },
-              alignment: { vertical: 'center' },
-            };
-          }
-        }
-      }
-
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(wb, ws, 'Empleados');
+      const csvContent = [csvHeaders.join(','), ...csvRows].join('\n');
 
       // Generate filename with current date
-      const fileName = `empleados_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const fileName = `empleados_${new Date().toISOString().split('T')[0]}.csv`;
 
-      // Set headers for Excel download
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      // Set headers for CSV download
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
 
-      // Write Excel file to response
-      const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-      res.send(excelBuffer);
+      // Send CSV content
+      res.send(csvContent);
 
     } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error exporting employees to Excel:', error);
-      res.status(500).json({ message: 'Failed to export employees to Excel' });
-    }
-  });
-
-  // Reactivate employee (protected - super_admin only)
-  app.post('/api/employees/:id/reactivate', isAuthenticated, async (req: any, res) => {
-    if (process.env.NODE_ENV !== 'production') console.log('🔄 Reactivate employee request');
-    try {
-      const user = req.user as { email?: string; role?: string };
-      if (user?.role !== 'super_admin') {
-        return res.status(403).json({ message: 'Solo el super admin puede reactivar empleados' });
-      }
-
-      const { id } = req.params;
-
-      // Get employee data for audit
-      const employee = await storage.getEmployee(id);
-      if (!employee) {
-        return res.status(404).json({ message: 'Employee not found' });
-      }
-
-      const reactivatedEmployee = await storage.reactivateEmployee(id, user.email);
-
-      // Log audit
-      await AuditService.logAction({
-        userId: user.email || '',
-        userRole: (user.role as 'super_admin' | 'admin') || 'normal',
-        action: 'reactivate_employee',
-        entityType: 'employee',
-        entityId: employee.idGlovo,
-        entityName: `${employee.nombre} ${employee.apellido}`,
-        description: `Empleado reactivado: ${employee.nombre} ${employee.apellido} (${employee.idGlovo})`,
-        oldData: employee,
-        newData: reactivatedEmployee,
-      });
-
-      res.json(reactivatedEmployee);
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error reactivating employee:', error);
-      res.status(500).json({ message: 'Failed to reactivate employee' });
-    }
-  });
-
-  // Get employees already reactivated from company leaves (protected)
-  app.get('/api/employees/reactivated-from-leaves', isAuthenticated, async (req: any, res) => {
-    try {
-      const reactivatedEmployees = await storage.getReactivatedEmployeesFromLeaves();
-      res.json({ reactivatedEmployees });
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error getting reactivated employees:', error);
-      res.status(500).json({ message: 'Failed to get reactivated employees' });
-    }
-  });
-
-  // Page access logging (protected)
-  app.post('/api/log-page-access', isAuthenticated, async (req: any, res) => {
-    try {
-      const user = req.user as { email?: string; role?: string };
-      const { page, action } = req.body;
-
-      // Log page access
-      await AuditService.logAction({
-        userId: user.email || '',
-        userRole: (user.role as 'super_admin' | 'admin') || 'normal',
-        action: 'page_access',
-        entityType: 'page',
-        entityName: page,
-        description: `Acceso a página: ${page} - Usuario: ${user.email}`,
-        newData: { page, action, timestamp: new Date().toISOString() },
-      });
-
-      res.json({ success: true });
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error logging page access:', error);
-      res.status(500).json({ message: 'Failed to log page access' });
-    }
-  });
-
-  // Obtener historial de bajas de un empleado
-  app.get('/api/employees/:id/leave-history', isAuthenticated, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      // Permitir que cualquier usuario autenticado consulte el historial
-      const history = await storage.getEmployeeLeaveHistory(id);
-      res.json(history);
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error obteniendo historial de bajas:', error);
-      res.status(500).json({ message: 'Error obteniendo historial de bajas' });
-    }
-  });
-
-  // Obtener lista de empleados que serían eliminados (solo superadmin)
-  app.get('/api/employees/clean-leaves-preview', isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as { email?: string; role?: string };
-      if (user?.role !== 'super_admin') {
-        return res.status(403).json({ message: 'Solo el super admin puede ver la vista previa de limpieza' });
-      }
-      
-      const result = await storage.getEmployeesToClean();
-      
-      // Log audit
-      await AuditService.logAction({
-        userId: user?.email || '',
-        userRole: 'super_admin',
-        action: 'preview_clean_company_leave_approved_employees',
-        entityType: 'employee',
-        description: `Vista previa de limpieza de empleados dados de baja aprobada (${result.total} encontrados)`,
-        newData: result,
-      });
-      
-      res.json({ success: true, ...result });
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error obteniendo vista previa de limpieza:', error);
-      res.status(500).json({ message: 'Error al obtener vista previa de limpieza' });
-    }
-  });
-
-  // Limpieza de empleados dados de baja aprobada (solo superadmin)
-  app.post('/api/employees/clean-leaves', isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as { email?: string; role?: string };
-      if (user?.role !== 'super_admin') {
-        return res.status(403).json({ message: 'Solo el super admin puede limpiar empleados dados de baja' });
-      }
-      const result = await storage.cleanCompanyLeaveApprovedEmployees();
-      // Log audit
-      await AuditService.logAction({
-        userId: user?.email || '',
-        userRole: 'super_admin',
-        action: 'clean_company_leave_approved_employees',
-        entityType: 'employee',
-        description: `Limpieza masiva de empleados dados de baja aprobada (${result.total} eliminados)`,
-        newData: result,
-      });
-      res.json({ success: true, ...result });
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error en limpieza de empleados dados de baja:', error);
-      res.status(500).json({ message: 'Error al limpiar empleados dados de baja' });
-    }
-  });
-
-  // Ejecutar limpieza automática manualmente (solo superadmin)
-  app.post('/api/employees/execute-automatic-cleanup', isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as { email?: string; role?: string };
-      if (user?.role !== 'super_admin') {
-        return res.status(403).json({ message: 'Solo el super admin puede ejecutar la limpieza automática' });
-      }
-
-      // Importar el scheduler dinámicamente para evitar dependencias circulares
-      const { scheduler } = await import('./scheduler.js');
-      const result = await scheduler.executeManualCleanup();
-
-      if (result.success) {
-        res.json({ 
-          success: true, 
-          message: 'Limpieza automática ejecutada manualmente',
-          ...result.result 
-        });
-      } else {
-        res.status(500).json({ 
-          success: false, 
-          message: 'Error ejecutando limpieza automática',
-          error: result.error 
-        });
-      }
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error ejecutando limpieza automática:', error);
-      res.status(500).json({ message: 'Error al ejecutar limpieza automática' });
-    }
-  });
-
-  // Corregir horas de empleados en baja IT
-  app.post('/api/employees/:id/fix-it-leave-hours', isAuthenticated, async (req: any, res) => {
-    if (process.env.NODE_ENV !== 'production') console.log('🔧 Fix IT leave hours request');
-    try {
-      const user = req.user as { email?: string; role?: string };
-      if (user?.role === 'normal') {
-        return res.status(403).json({ message: 'No tienes permisos para corregir horas de baja IT' });
-      }
-
-      const { id } = req.params;
-      
-      // Corregir las horas del empleado
-      const updatedEmployee = await storage.fixItLeaveHours(id);
-
-      // Log audit
-      await AuditService.logAction({
-        userId: user.email || '',
-        userRole: (user.role as 'super_admin' | 'admin') || 'normal',
-        action: 'fix_it_leave_hours',
-        entityType: 'employee',
-        entityId: id,
-        entityName: `${updatedEmployee?.nombre || ''} ${updatedEmployee?.apellido || ''}`,
-        description: `Usuario ${user.email} CORRIGIÓ las horas de baja IT para el empleado ${id} - Horas originales: ${updatedEmployee.originalHours}, Horas actuales: ${updatedEmployee.horas}`,
-        newData: updatedEmployee,
-      });
-
-      res.status(200).json({ 
-        message: 'Horas de baja IT corregidas correctamente',
-        employee: updatedEmployee 
-      });
-    } catch (error) {
-      console.error('❌ Error fixing IT leave hours:', error);
-      res.status(500).json({ message: 'Failed to fix IT leave hours' });
-    }
-  });
-
-  // Verificar y corregir horas de todos los empleados (solo superadmin)
-  app.post('/api/employees/verify-hours', isAuthenticated, async (req: any, res) => {
-    if (process.env.NODE_ENV !== 'production') console.log('🔍 Verify and fix all employee hours request');
-    try {
-      const user = req.user as { email?: string; role?: string };
-      if (user?.role !== 'super_admin') {
-        return res.status(403).json({ message: 'Solo el super admin puede verificar horas de empleados' });
-      }
-
-      const result = await storage.verifyAndFixAllEmployeeHours();
-
-      // Log audit
-      await AuditService.logAction({
-        userId: user.email || '',
-        userRole: (user.role as 'super_admin' | 'admin') || 'normal',
-        action: 'verify_and_fix_all_employee_hours',
-        entityType: 'system',
-        entityId: 'verify-hours',
-        description: `Verificación masiva de horas de empleados: ${result.checked} verificados, ${result.fixed} corregidos`,
-        newData: result,
-      });
-
-      res.status(200).json({ 
-        message: 'Verificación de horas completada',
-        result 
-      });
-    } catch (error) {
-      console.error('❌ Error verifying employee hours:', error);
-      res.status(500).json({ message: 'Failed to verify employee hours' });
-    }
-  });
-
-  // Corregir horas de empleado específico (solo superadmin)
-  app.post('/api/employees/:id/fix-hours', isAuthenticated, async (req: any, res) => {
-    if (process.env.NODE_ENV !== 'production') console.log('🔧 Fix specific employee hours request');
-    try {
-      const user = req.user as { email?: string; role?: string };
-      if (user?.role !== 'super_admin') {
-        return res.status(403).json({ message: 'Solo el super admin puede corregir horas de empleados' });
-      }
-
-      const { id } = req.params;
-
-      // Obtener el empleado para determinar qué tipo de corrección aplicar
-      const employee = await storage.getEmployee(id);
-      if (!employee) {
-        return res.status(404).json({ message: 'Employee not found' });
-      }
-
-      let result;
-      let actionType = '';
-      switch (employee.status) {
-        case 'it_leave':
-          result = await storage.fixItLeaveHours(id);
-          actionType = 'fix_it_leave_hours';
-          break;
-        case 'company_leave_approved':
-          result = await storage.fixCompanyLeaveHours(id);
-          actionType = 'fix_company_leave_hours';
-          break;
-        default:
-          return res.status(400).json({ message: 'Employee is not in a status that requires hours fixing' });
-      }
-
-      // Log audit
-      await AuditService.logAction({
-        userId: user.email || '',
-        userRole: (user.role as 'super_admin' | 'admin') || 'normal',
-        action: actionType,
-        entityType: 'employee',
-        entityId: id,
-        entityName: `${employee.nombre} ${employee.apellido || ''}`,
-        description: `Corrección de horas para empleado ${employee.nombre} ${employee.apellido || ''} (${id}) - Estado: ${employee.status}`,
-        oldData: employee,
-        newData: result,
-      });
-
-      res.status(200).json({ 
-        message: 'Horas corregidas correctamente',
-        employee: result 
-      });
-    } catch (error) {
-      console.error('❌ Error fixing employee hours:', error);
-      res.status(500).json({ message: 'Failed to fix employee hours' });
-    }
-  });
-
-  // ===== RUTAS DEL MÓDULO CAPTACIÓN/SALIDAS =====
-
-  // Obtener dashboard de captación (protegido)
-  app.get('/api/captation/dashboard', isAuthenticated, async (req, res) => {
-    if (process.env.NODE_ENV !== 'production') console.log('📊 Captation dashboard request');
-    try {
-      const user = req.user as { email?: string; role?: string };
-      
-      const dashboardData = await storage.getCaptationDashboard();
-
-      // Log audit
-      await AuditService.logAction({
-        userId: user?.email || '',
-        userRole: (user.role as 'super_admin' | 'admin') || 'normal',
-        action: 'access_captation_dashboard',
-        entityType: 'captation_dashboard',
-        description: `Acceso al dashboard de captación - Usuario: ${user?.email}`,
-        newData: { dashboardData },
-      });
-
-      res.json(dashboardData);
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error fetching captation dashboard:', error);
-      res.status(500).json({ message: 'Failed to fetch captation dashboard' });
-    }
-  });
-
-  // Obtener requerimientos de horas por ciudad (protegido)
-  app.get('/api/captation/city-requirements', isAuthenticated, async (req, res) => {
-    if (process.env.NODE_ENV !== 'production') console.log('🏙️ City hours requirements request');
-    try {
-      const requirements = await storage.getAllCityHoursRequirements();
-      res.json(requirements);
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error fetching city requirements:', error);
-      res.status(500).json({ message: 'Failed to fetch city requirements' });
-    }
-  });
-
-  // Obtener requerimiento específico de una ciudad (protegido)
-  app.get('/api/captation/city-requirements/:ciudad', isAuthenticated, async (req, res) => {
-    if (process.env.NODE_ENV !== 'production') console.log('🏙️ Specific city requirement request');
-    try {
-      const { ciudad } = req.params;
-      const requirement = await storage.getCityHoursRequirement(ciudad);
-      
-      if (!requirement) {
-        return res.status(404).json({ message: 'City requirement not found' });
-      }
-      
-      res.json(requirement);
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error fetching city requirement:', error);
-      res.status(500).json({ message: 'Failed to fetch city requirement' });
-    }
-  });
-
-  // Actualizar requerimientos de horas por ciudad (solo super_admin)
-  app.put('/api/captation/city-requirements/:ciudad', isAuthenticated, async (req, res) => {
-    if (process.env.NODE_ENV !== 'production') console.log('✏️ Update city hours requirement request');
-    try {
-      const user = req.user as { email?: string; role?: string };
-      if (user?.role !== 'super_admin') {
-        return res.status(403).json({ message: 'Solo el super admin puede actualizar requerimientos de horas' });
-      }
-
-      const { ciudad } = req.params;
-      const { horasFijasRequeridas, motivoCambio } = req.body;
-
-      // Validar datos
-      if (typeof horasFijasRequeridas !== 'number') {
-        return res.status(400).json({ message: 'Las horas deben ser números válidos' });
-      }
-
-      if (horasFijasRequeridas < 0) {
-        return res.status(400).json({ message: 'Las horas no pueden ser negativas' });
-      }
-
-      const updatedRequirement = await storage.updateCityHoursRequirement(
-        ciudad,
-        { horasFijasRequeridas },
-        user.email || '',
-        motivoCambio
-      );
-
-      // Log audit
-      await AuditService.logAction({
-        userId: user.email || '',
-        userRole: 'super_admin',
-        action: 'update_city_hours_requirement',
-        entityType: 'city_hours_requirement',
-        entityId: ciudad,
-        entityName: ciudad,
-        description: `Actualización de requerimientos de horas para ${ciudad}: Fijas: ${horasFijasRequeridas}`,
-        oldData: { ciudad },
-        newData: updatedRequirement,
-      });
-
-      res.json(updatedRequirement);
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error updating city requirement:', error);
-      res.status(500).json({ message: 'Failed to update city requirement' });
-    }
-  });
-
-  // Obtener historial de cambios de una ciudad (protegido)
-  app.get('/api/captation/city-requirements/:ciudad/history', isAuthenticated, async (req, res) => {
-    if (process.env.NODE_ENV !== 'production') console.log('📜 City requirement history request');
-    try {
-      const user = req.user as { email?: string; role?: string };
-      if (user?.role !== 'super_admin') {
-        return res.status(403).json({ message: 'Solo el super admin puede ver el historial de cambios' });
-      }
-
-      const { ciudad } = req.params;
-      const { limit = 50 } = req.query;
-      
-      const history = await storage.getCityHoursRequirementHistory(
-        ciudad, 
-        parseInt(limit as string) || 50
-      );
-      
-      res.json(history);
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error fetching city requirement history:', error);
-      res.status(500).json({ message: 'Failed to fetch city requirement history' });
-    }
-  });
-
-  // Obtener horas actuales de una ciudad específica (protegido)
-  app.get('/api/captation/city-current-hours/:ciudad', isAuthenticated, async (req, res) => {
-    if (process.env.NODE_ENV !== 'production') console.log('⏰ City current hours request');
-    try {
-      const { ciudad } = req.params;
-      const currentHours = await storage.getCityCurrentHours(ciudad);
-      
-      if (!currentHours) {
-        return res.status(404).json({ message: 'No se encontraron datos para esta ciudad' });
-      }
-      
-      res.json(currentHours);
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error fetching city current hours:', error);
-      res.status(500).json({ message: 'Failed to fetch city current hours' });
+      if (process.env.NODE_ENV !== 'production') console.error('❌ Error exporting employees to CSV:', error);
+      res.status(500).json({ message: 'Failed to export employees to CSV' });
     }
   });
 

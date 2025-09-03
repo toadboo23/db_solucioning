@@ -1,7 +1,7 @@
 import session from 'express-session';
 import type { Express, RequestHandler } from 'express';
 import connectPg from 'connect-pg-simple';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { PostgresStorage } from './storage-postgres.js';
 import { AuditService } from './audit-service.js';
 import type { SystemUser } from '../shared/schema.js';

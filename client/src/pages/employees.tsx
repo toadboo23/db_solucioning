@@ -16,6 +16,7 @@ import ImportEmployeesModal from '@/components/modals/import-employees-modal';
 import EmployeeDetailModal from '@/components/modals/employee-detail-modal';
 import PenalizationModal from '@/components/modals/penalization-modal';
 import PenalizationAlert from '@/components/penalization-alert';
+import FleetUploadModal from '@/components/modals/fleet-upload-modal';
 import { Plus, Search, Download, FileSpreadsheet, Upload, ChevronLeft, ChevronRight, Users, AlertTriangle, Trash2, RefreshCw, Settings, Clock } from 'lucide-react';
 import type { Employee } from '@shared/schema';
 import { CIUDADES_DISPONIBLES } from '@shared/schema';
@@ -58,6 +59,9 @@ export default function Employees () {
 
   // Nuevo estado para controlar la carga manual de empleados
   const [employeesLoaded, setEmployeesLoaded] = useState(false);
+
+  // Nuevo estado para el modal de Fleet
+  const [isFleetUploadModalOpen, setIsFleetUploadModalOpen] = useState(false);
 
   // Constantes de paginación
   const ITEMS_PER_PAGE = 10;
@@ -110,23 +114,36 @@ export default function Employees () {
   });
 
   // Función para cargar empleados
-  const handleLoadEmployees = () => {
-    console.log('🔄 Intentando cargar empleados...');
-    console.log('👤 Usuario actual:', user);
-    console.log('🏙️ Ciudad del usuario:', user?.ciudad);
+  const handleLoadEmployees = async () => {
+    try {
+      // Sincronizar last_order automáticamente al cargar empleados
+      if (user?.role === 'admin' || user?.role === 'super_admin') {
+        const syncResponse = await fetch('/api/employees/sync-last-order', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        
+        if (syncResponse.ok) {
+          const syncResult = await syncResponse.json();
+          if (syncResult.updated > 0) {
+            toast({
+              title: 'Sincronización completada',
+              description: `${syncResult.updated} registros de last_order actualizados`,
+              variant: 'default',
+            });
+          }
+        }
+      }
+    } catch (error) {
+      // No mostrar error al usuario, continuar con la carga normal
+    }
+    
     setEmployeesLoaded(true);
     toast({
       title: 'Cargando empleados',
       description: `Cargando empleados, códigos de ciudad y flotas...`,
     });
   };
-
-  // Debug: Log del estado actual
-  console.log('🔍 Estado actual de la página:');
-  console.log('  - isAuthenticated:', isAuthenticated);
-  console.log('  - user:', user);
-  console.log('  - employeesLoaded:', employeesLoaded);
-  console.log('  - employeesLoading:', employeesLoading);
 
   const createEmployeeMutation = useMutation({
     mutationFn: async (employeeData: Record<string, unknown>) => {
@@ -270,7 +287,7 @@ export default function Employees () {
     },
   });
 
-  // Mutación para exportar empleados a Excel
+  // Mutación para exportar empleados a CSV
   const exportEmployeesMutation = useMutation({
     mutationFn: async () => {
       // Construir URL con filtros actuales
@@ -279,7 +296,7 @@ export default function Employees () {
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
       if (searchTerm) params.append('search', searchTerm);
       
-      const url = `/api/employees/export/excel${params.toString() ? `?${params.toString()}` : ''}`;
+      const url = `/api/employees/export/csv${params.toString() ? `?${params.toString()}` : ''}`;
       
       const response = await fetch(url, {
         method: 'GET',
@@ -295,7 +312,7 @@ export default function Employees () {
       const downloadUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = `empleados_${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.download = `empleados_${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(downloadUrl);
@@ -305,14 +322,14 @@ export default function Employees () {
     },
     onSuccess: () => {
       // Construir mensaje con información de filtros
-      let description = 'Se han exportado todos los empleados a Excel';
+      let description = 'Se han exportado todos los empleados a CSV';
       const filters = [];
       if (cityFilter && cityFilter !== 'all') filters.push(`ciudad: ${cityFilter}`);
       if (statusFilter && statusFilter !== 'all') filters.push(`estado: ${statusFilter}`);
       if (searchTerm) filters.push(`búsqueda: "${searchTerm}"`);
       
       if (filters.length > 0) {
-        description = `Se han exportado empleados a Excel (filtros aplicados: ${filters.join(', ')})`;
+        description = `Se han exportado empleados a CSV (filtros aplicados: ${filters.join(', ')})`;
       }
       
       toast({
@@ -469,9 +486,110 @@ export default function Employees () {
     }
   };
 
+  // Función para manejar la importación del CSV de Fleet
+  const handleFleetFileUpload = (file: File) => {
+    // Validar tipo de archivo
+    if (!file.name.endsWith('.csv')) {
+      toast({
+        title: 'Archivo inválido',
+        description: 'Solo se permiten archivos CSV',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validar tamaño del archivo (10MB máximo)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'Archivo muy grande',
+        description: 'El archivo no debe superar los 10MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Ejecutar la mutación
+    importFleetMutation.mutate(file);
+  };
+
+  // Mutación para importar CSV de Fleet
+  const importFleetMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('csvFile', file);
+      
+      const response = await fetch('/api/fleet/import-csv', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al importar el CSV');
+      }
+      
+      return response.json();
+    },
+    onSuccess: async (data) => {
+      toast({
+        title: 'Fleet Cargado',
+        description: `${data.imported} registros importados exitosamente`,
+        variant: 'default',
+      });
+      
+      // Cerrar modal
+      setIsFleetUploadModalOpen(false);
+      
+      // Sincronizar last_order automáticamente después de importar Fleet
+      try {
+        const syncResponse = await fetch('/api/employees/sync-last-order', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        
+        if (syncResponse.ok) {
+          const syncResult = await syncResponse.json();
+          if (syncResult.updated > 0) {
+            toast({
+              title: 'Last Order Actualizado',
+              description: `${syncResult.updated} registros de last_order actualizados automáticamente`,
+              variant: 'default',
+            });
+          }
+        }
+      } catch (error) {
+        // No mostrar error al usuario, solo log en consola
+      }
+      
+      // Invalidar queries para refrescar datos
+      queryClient.invalidateQueries({ queryKey: ['/api/employees'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/metrics'] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: 'Error de autorización',
+          description: 'Tu sesión ha expirado. Redirigiendo al login...',
+          variant: 'destructive',
+        });
+        setTimeout(() => {
+          window.location.href = '/api/login';
+        }, 500);
+        return;
+      }
+      
+      toast({
+        title: 'Error al importar Fleet',
+        description: error instanceof Error ? error.message : 'Error desconocido',
+        variant: 'destructive',
+      });
+    },
+  });
 
 
-  // Función para exportar empleados a Excel
+
+  // Función para exportar empleados a CSV
   const handleExportEmployees = () => {
     // Usar la nueva mutación que hace consulta completa al backend
     exportEmployeesMutation.mutate();
@@ -567,6 +685,8 @@ export default function Employees () {
               </Button>
             )}
 
+
+
             {/* Botón Descargar Plantilla - Solo Admin y Super Admin */}
             {canDownloadTemplate && (
               <Button
@@ -591,6 +711,18 @@ export default function Employees () {
               </Button>
             )}
 
+            {/* Botón Subir Fleet - Solo Super Admin */}
+            {user?.role === 'super_admin' && (
+              <Button
+                variant="outline"
+                onClick={() => setIsFleetUploadModalOpen(true)}
+                className="border-indigo-500 text-indigo-600 hover:bg-indigo-50"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Subir Fleet
+              </Button>
+            )}
+            
             {/* Botón Exportar - Solo Admin y Super Admin */}
             {canExportEmployees && (
               <Button
@@ -600,7 +732,7 @@ export default function Employees () {
                 className="border-green-500 text-green-600 hover:bg-green-50"
               >
                 <Download className="w-4 h-4 mr-2" />
-                {exportEmployeesMutation.isPending ? 'Exportando...' : 'Exportar Excel'}
+                {exportEmployeesMutation.isPending ? 'Exportando...' : 'Exportar'}
               </Button>
             )}
 
@@ -956,6 +1088,14 @@ export default function Employees () {
         }}
         employee={penalizationEmployee}
         action={penalizationAction}
+      />
+
+      {/* Modal para importar CSV de Fleet */}
+      <FleetUploadModal
+        isOpen={isFleetUploadModalOpen}
+        onClose={() => setIsFleetUploadModalOpen(false)}
+        onUpload={handleFleetFileUpload}
+        isLoading={importFleetMutation.isPending}
       />
     </div>
   );
