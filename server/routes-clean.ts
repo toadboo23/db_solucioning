@@ -31,6 +31,22 @@ const upload = multer({
   },
 });
 
+// Configuración específica para Fleet CSV
+const fleetUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB máximo
+  },
+});
+
+// Configuración alternativa para Fleet CSV
+const fleetUploadAlt = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB máximo
+  },
+});
+
 export async function registerRoutes (app: Express): Promise<Server> {
   if (process.env.NODE_ENV !== 'production') console.log('🚀 Setting up routes...');
 
@@ -535,7 +551,7 @@ export async function registerRoutes (app: Express): Promise<Server> {
   });
 
   // Import Fleet from CSV (protected - super_admin only)
-  app.post("/api/fleet/import-csv", isAuthenticated, upload.single("file"), async (req: any, res) => {
+  app.post("/api/fleet/import-csv", isAuthenticated, fleetUploadAlt.single("file"), async (req: any, res) => {
     if (process.env.NODE_ENV !== "production") console.log("�� Import Fleet CSV request");
     try {
       const user = req.user as { email?: string; role?: string };
