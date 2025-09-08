@@ -26,22 +26,6 @@ const storage = new PostgresStorage();
 // Configuración de multer para archivos CSV
 const upload = multer({
   storage: multer.memoryStorage(),
-  fileFilter: (req, file, cb) => {
-    console.log('🔍 File filter - Fieldname:', file.fieldname, 'Originalname:', file.originalname, 'Mimetype:', file.mimetype);
-    
-    // Aceptar cualquier archivo que termine en .csv o tenga mimetype de CSV
-    if (file.originalname.endsWith('.csv') || 
-        file.mimetype === 'text/csv' || 
-        file.mimetype === 'application/csv' ||
-        file.mimetype === 'application/vnd.ms-excel' ||
-        file.mimetype === 'text/plain') {
-      console.log('✅ File accepted:', file.originalname);
-      cb(null, true);
-    } else {
-      console.log('❌ File rejected - Mimetype:', file.mimetype, 'Originalname:', file.originalname);
-      cb(new Error('Solo se permiten archivos CSV'));
-    }
-  },
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB máximo
   },
