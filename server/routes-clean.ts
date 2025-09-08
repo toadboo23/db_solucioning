@@ -1691,6 +1691,34 @@ export async function registerRoutes (app: Express): Promise<Server> {
     }
   });
 
+  // Sincronizar last_order desde couriers_export (protected - admin/super_admin only)
+  app.post('/api/employees/sync-last-order', isAuthenticated, async (req: any, res) => {
+    if (process.env.NODE_ENV !== 'production') console.log('🔄 Sync last order request');
+    try {
+      const user = req.user as { email?: string; role?: string };
+      if (user?.role === 'normal') {
+        return res.status(403).json({ message: 'No tienes permisos para sincronizar last_order' });
+      }
+
+      const result = await storage.syncLastOrderFromCouriers();
+
+      // Log sync action
+      await AuditService.logAction({
+        userId: user.email || '',
+        userRole: (user.role as 'super_admin' | 'admin') || 'normal',
+        action: 'sync_last_order',
+        entityType: 'employee',
+        description: `Sincronización de last_order - Usuario: ${user.email} - Registros actualizados: ${result.updated}`,
+        newData: { updated: result.updated, errors: result.errors },
+      });
+
+      res.json(result);
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') console.error('❌ Error syncing last order:', error);
+      res.status(500).json({ message: 'Failed to sync last order' });
+    }
+  });
+
   // Create HTTP server
   const server = createServer(app);
 
