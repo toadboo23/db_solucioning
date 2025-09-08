@@ -27,15 +27,18 @@ const storage = new PostgresStorage();
 const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('🔍 File filter - Fieldname:', file.fieldname, 'Originalname:', file.originalname, 'Mimetype:', file.mimetype);
-    }
-    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv') || file.mimetype === 'application/vnd.ms-excel') {
+    console.log('🔍 File filter - Fieldname:', file.fieldname, 'Originalname:', file.originalname, 'Mimetype:', file.mimetype);
+    
+    // Aceptar cualquier archivo que termine en .csv o tenga mimetype de CSV
+    if (file.originalname.endsWith('.csv') || 
+        file.mimetype === 'text/csv' || 
+        file.mimetype === 'application/csv' ||
+        file.mimetype === 'application/vnd.ms-excel' ||
+        file.mimetype === 'text/plain') {
+      console.log('✅ File accepted:', file.originalname);
       cb(null, true);
     } else {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('❌ File rejected - Mimetype:', file.mimetype, 'Originalname:', file.originalname);
-      }
+      console.log('❌ File rejected - Mimetype:', file.mimetype, 'Originalname:', file.originalname);
       cb(new Error('Solo se permiten archivos CSV'));
     }
   },
