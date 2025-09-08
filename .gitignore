@@ -29,6 +29,7 @@ example-usage.ps1
 dev-local.ps1
 develop-feature.ps1
 reset-db-local.sh
+connect-vps.ps1
 
 # ========================================
 # NODE.JS / NPM

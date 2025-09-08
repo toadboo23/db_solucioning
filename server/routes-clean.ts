@@ -1719,6 +1719,30 @@ export async function registerRoutes (app: Express): Promise<Server> {
     }
   });
 
+  // Log page access (protected)
+  app.post('/api/log-page-access', isAuthenticated, async (req: any, res) => {
+    if (process.env.NODE_ENV !== 'production') console.log('📝 Request body:', req.body);
+    try {
+      const { page, action } = req.body;
+      const user = req.user as { email?: string; role?: string };
+
+      // Log page access
+      await AuditService.logAction({
+        userId: user.email || '',
+        userRole: (user.role as 'super_admin' | 'admin' | 'normal') || 'normal',
+        action: 'page_access',
+        entityType: 'page',
+        description: `Acceso a página: ${page}${action ? ` - Acción: ${action}` : ''} - Usuario: ${user.email}`,
+        newData: { page, action },
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') console.error('❌ Error logging page access:', error);
+      res.status(500).json({ message: 'Failed to log page access' });
+    }
+  });
+
   // Create HTTP server
   const server = createServer(app);
 

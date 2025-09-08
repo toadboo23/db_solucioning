@@ -516,7 +516,7 @@ export default function Employees () {
   const importFleetMutation = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
-      formData.append('csvFile', file);
+      formData.append('file', file);
       
       const response = await fetch('/api/fleet/import-csv', {
         method: 'POST',
