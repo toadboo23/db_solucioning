@@ -541,6 +541,47 @@ export async function registerRoutes (app: Express): Promise<Server> {
     }
   });
 
+  // Import Fleet from CSV (protected - super_admin only)
+  app.post("/api/fleet/import-csv", isAuthenticated, upload.single("file"), async (req: any, res) => {
+    if (process.env.NODE_ENV !== "production") console.log("�� Import Fleet CSV request");
+    try {
+      const user = req.user as { email?: string; role?: string };
+      if (user?.role !== "super_admin") {
+        return res.status(403).json({ message: "Solo el super admin puede importar archivos de Fleet" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No se ha proporcionado ningún archivo" });
+      }
+
+      const csvBuffer = req.file.buffer;
+      const result = await storage.importFleetFromCSV(csvBuffer);
+
+      // Log audit
+      await AuditService.logAction({
+        userId: user.email || "",
+        userRole: (user.role as "super_admin") || "normal",
+        action: "import_fleet_csv",
+        entityType: "fleet",
+        description: `Importación de Fleet desde CSV: ${result.imported} registros importados, ${result.errors.length} errores`,
+        newData: { imported: result.imported, errors: result.errors },
+      });
+
+      res.json({
+        success: true,
+        message: `Se importaron ${result.imported} registros de Fleet correctamente`,
+        imported: result.imported,
+        errors: result.errors,
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") console.error("❌ Error importing Fleet CSV:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error al importar archivo de Fleet",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
   // Employee penalization (protected - admin/super_admin only)
   app.post('/api/employees/:id/penalize', isAuthenticated, async (req: any, res) => {
     if (process.env.NODE_ENV !== 'production') console.log('⚠️ Penalize employee request');
