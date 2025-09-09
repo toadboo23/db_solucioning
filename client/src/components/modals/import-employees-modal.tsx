@@ -311,6 +311,7 @@ export default function ImportEmployeesModal ({
           const penalizationEndDateIndex = findColumnIndex('penalization_end_date');
           const originalHoursIndex = findColumnIndex('original_hours');
           const flotaIndex = findColumnIndex('flota');
+          const puestoIndex = findColumnIndex('puesto');
           const vacacionesDisfrutadasIndex = findColumnIndex('vacaciones_disfrutadas');
           const vacacionesPendientesIndex = findColumnIndex('vacaciones_pendientes');
 
@@ -361,6 +362,7 @@ export default function ImportEmployeesModal ({
             penalizationEndDate: row[penalizationEndDateIndex] ? String(row[penalizationEndDateIndex]) : undefined,
             originalHours: row[originalHoursIndex] ? Math.round(parseFloat(String(row[originalHoursIndex])) || 0) : undefined,
             flota: row[flotaIndex] ? String(row[flotaIndex]) : undefined,
+            puesto: row[puestoIndex] ? String(row[puestoIndex]) : undefined,
             vacacionesDisfrutadas: row[vacacionesDisfrutadasIndex] ? parseFloat(String(row[vacacionesDisfrutadasIndex])) || 0 : undefined,
             vacacionesPendientes: row[vacacionesPendientesIndex] ? parseFloat(String(row[vacacionesPendientesIndex])) || 0 : undefined,
           };

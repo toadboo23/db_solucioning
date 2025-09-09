@@ -89,6 +89,7 @@ export function createEmployeeTemplate (fileName: string = 'plantilla_empleados'
     'penalization_end_date',   // Fecha fin penalización
     'original_hours',     // Horas originales
     'flota',              // Flota
+    'puesto',             // Puesto
     'vacaciones_disfrutadas', // Vacaciones disfrutadas
     'vacaciones_pendientes',  // Vacaciones pendientes
   ];
@@ -132,6 +133,7 @@ export function createEmployeeTemplate (fileName: string = 'plantilla_empleados'
       '',                             // penalization_end_date (vacío)
       '',                             // original_hours (vacío)
       '',                             // flota (vacío)
+      'Repartidor',                   // puesto
       0,                              // vacaciones_disfrutadas (número)
       0,                              // vacaciones_pendientes (número)
     ],

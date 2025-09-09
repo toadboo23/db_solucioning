@@ -105,6 +105,7 @@ export const employees = pgTable('employees', {
   originalHours: integer('original_hours'),
   flota: varchar('flota', { length: 100 }),
   lastOrder: varchar('last_order', { length: 50 }),
+  puesto: varchar('puesto', { length: 20 }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   vacacionesDisfrutadas: numeric('vacaciones_disfrutadas', { precision: 6, scale: 2 }).default('0.00'),

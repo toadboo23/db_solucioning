@@ -293,6 +293,7 @@ export default function CompanyLeaves () {
         Horas: employeeData?.horas || 'N/A',
         'CDP%': employeeData?.horas ? ((Number(employeeData.horas) / 38) * 100).toFixed(2) : 'N/A',
         Flota: employeeData?.flota || 'N/A',
+        Puesto: employeeData?.puesto || 'N/A',
         'Tipo de Baja':
           leave.leaveType === 'despido'
             ? 'Despido'

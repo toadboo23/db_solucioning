@@ -47,6 +47,11 @@ const fleetUploadAlt = multer({
   },
 });
 
+// Configuración específica para Fleet CSV - sin restricciones
+const fleetUploadSimple = multer({
+  storage: multer.memoryStorage(),
+});
+
 export async function registerRoutes (app: Express): Promise<Server> {
   if (process.env.NODE_ENV !== 'production') console.log('🚀 Setting up routes...');
 
@@ -551,7 +556,7 @@ export async function registerRoutes (app: Express): Promise<Server> {
   });
 
   // Import Fleet from CSV (protected - super_admin only)
-  app.post("/api/fleet/import-csv", isAuthenticated, fleetUploadAlt.single("file"), async (req: any, res) => {
+  app.post("/api/fleet/import-csv", isAuthenticated, fleetUploadSimple.single("file"), async (req: any, res) => {
     if (process.env.NODE_ENV !== "production") console.log("�� Import Fleet CSV request");
     try {
       const user = req.user as { email?: string; role?: string };
@@ -1632,6 +1637,7 @@ export async function registerRoutes (app: Express): Promise<Server> {
         'Penalización Fecha Fin',
         'Horas Originales',
         'Flota',
+        'Puesto',
         'Created At',
         'Updated At',
         'Vacaciones Disfrutadas',
@@ -1676,6 +1682,7 @@ export async function registerRoutes (app: Express): Promise<Server> {
         employee.penalizationEndDate || '',
         employee.originalHours || '',
         employee.flota || '',
+        employee.puesto || '',
         employee.createdAt || '',
         employee.updatedAt || '',
         employee.vacacionesDisfrutadas || '',
