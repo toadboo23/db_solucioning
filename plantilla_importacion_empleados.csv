@@ -1,3 +1,0 @@
-id_glovo;email_glovo;nombre;apellido;telefono;horas;ciudad;status;turno_1;turno_2;complementaries;iban;direccion;naf;cdp;originalHours;vacacionesDisfrutadas;vacacionesPendientes;informadoHorario;faltasNoCheckInEnDias
-GLV001;empleado1@glovo.com;Juan;Pérez;+34600123456;38;Madrid;Activo;Lunes-Viernes 9:00-17:00;Sábado 9:00-13:00;Festivos;ES1234567890123456789012;Calle Mayor 123;123456789;38;38;0;0;true;0
-GLV001;empleado1@glovo.com;Juan;Pérez;+34600123456;38;Madrid;Activo;Lunes-Viernes 9:00-17:00;Sábado 9:00-13:00;Festivos;ES1234567890123456789012;Calle Mayor 123;123456789;38;38;0;0;true;0
