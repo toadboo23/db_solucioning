@@ -1102,8 +1102,8 @@ export async function registerRoutes (app: Express): Promise<Server> {
               newCompanyLeaveStatus = 'rejected';
               break;
             case 'pending_laboral':
-              // Empleado permanece ACTIVE, se mueve a pendiente laboral
-              newEmployeeStatus = 'active'; // Empleado sigue activo
+              // Empleado se mueve a PENDING_LABORAL, se mueve a pendiente laboral
+              newEmployeeStatus = 'pending_laboral'; // Empleado cambia a pendiente laboral
               newCompanyLeaveStatus = 'pending';
               break;
             case 'processed':
@@ -1223,13 +1223,17 @@ export async function registerRoutes (app: Express): Promise<Server> {
                 }
               }
             } else {
-              // Para approve y pending_laboral: NO cambiar el estado del empleado (permanece ACTIVE)
-              // Solo para reject se restaura el estado a active (aunque ya está active)
+              // Para approve: NO cambiar el estado del empleado (permanece ACTIVE)
+              // Para pending_laboral: SÍ cambiar el estado del empleado a pending_laboral
+              // Para reject: restaurar el estado a active (aunque ya está active)
               if (action === 'reject') {
                 // Solo restaurar horas si es necesario, pero el estado ya es active
                 await storage.updateEmployee(employeeId, { status: 'active' as any });
+              } else if (action === 'pending_laboral') {
+                // Cambiar el estado del empleado a pending_laboral
+                await storage.updateEmployee(employeeId, { status: newEmployeeStatus as any });
               }
-              // Para approve y pending_laboral: NO hacer nada con el empleado, permanece active
+              // Para approve: NO hacer nada con el empleado, permanece active
             }
           }
 
