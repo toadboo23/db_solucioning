@@ -59,6 +59,8 @@ export function getEmpleadoMetadata(emp: any) {
     nombre: emp.nombre,
     apellido: emp.apellido,
     telefono: emp.telefono,
+    glovo: emp.glovo,
+    uber: emp.uber,
   };
 }
 

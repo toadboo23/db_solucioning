@@ -811,6 +811,7 @@ export async function registerRoutes (app: Express): Promise<Server> {
         comments: leaveData.otherReasonText || comments,
         leaveRequestedAt: leaveData.leaveRequestedAt || new Date(),
         leaveRequestedBy: leaveData.leaveRequestedBy || leaveData.requestedBy || user.email || '',
+        employeeData: leaveData.employeeData, // Incluir los datos del empleado con los campos glovo y uber
       };
       
       const leave = await storage.createCompanyLeave(processedLeaveData);
