@@ -92,6 +92,8 @@ export default function EmployeeTable ({
                 <TableHead>Flota</TableHead>
                 <TableHead>DNI/NIE</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead>Glovo</TableHead>
+                <TableHead>Uber</TableHead>
                 <TableHead>Last Order</TableHead>
                 <TableHead>Horas</TableHead>
                 <TableHead>CDP%</TableHead>
@@ -130,6 +132,16 @@ export default function EmployeeTable ({
                     {employee.dniNie || 'N/A'}
                   </TableCell>
                   <TableCell>{getStatusBadge(employee.status, employee)}</TableCell>
+                  <TableCell>
+                    <Badge className={employee.glovo ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                      {employee.glovo ? 'Sí' : 'No'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={employee.uber ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                      {employee.uber ? 'Sí' : 'No'}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     {employee.lastOrder ? (
                       <span className="text-sm text-gray-600">

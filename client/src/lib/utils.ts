@@ -92,6 +92,8 @@ export function createEmployeeTemplate (fileName: string = 'plantilla_empleados'
     'puesto',             // Puesto
     'vacaciones_disfrutadas', // Vacaciones disfrutadas
     'vacaciones_pendientes',  // Vacaciones pendientes
+    'glovo',              // Glovo (boolean)
+    'uber',               // Uber (boolean)
   ];
 
   // Datos de ejemplo con los campos correctos
@@ -136,6 +138,8 @@ export function createEmployeeTemplate (fileName: string = 'plantilla_empleados'
       'Repartidor',                   // puesto
       0,                              // vacaciones_disfrutadas (número)
       0,                              // vacaciones_pendientes (número)
+      true,                           // glovo (boolean - por defecto true)
+      false,                          // uber (boolean - por defecto false)
     ],
     // Fila adicional vacía para ejemplo
     new Array(headers.length).fill(''),

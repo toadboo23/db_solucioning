@@ -1645,7 +1645,9 @@ export async function registerRoutes (app: Express): Promise<Server> {
         'Created At',
         'Updated At',
         'Vacaciones Disfrutadas',
-        'Vacaciones Pendientes'
+        'Vacaciones Pendientes',
+        'Glovo',
+        'Uber'
       ];
 
       // Crear filas CSV con los campos exactos de employees
@@ -1690,7 +1692,9 @@ export async function registerRoutes (app: Express): Promise<Server> {
         employee.createdAt || '',
         employee.updatedAt || '',
         employee.vacacionesDisfrutadas || '',
-        employee.vacacionesPendientes || ''
+        employee.vacacionesPendientes || '',
+        employee.glovo ? 'Sí' : 'No',
+        employee.uber ? 'Sí' : 'No'
       ].map(field => `"${field}"`));
 
       const csvContent = [csvHeaders.join(','), ...csvRows].join('\n');

@@ -62,7 +62,7 @@ export default function EditEmployeeModal ({
     if (user?.role === 'super_admin') return false;
     if (user?.role === 'admin') {
       // Solo estos campos son editables para admin
-      const allowedFields = ['telefono', 'email', 'ciudad', 'complementaries'];
+      const allowedFields = ['telefono', 'email', 'ciudad', 'complementaries', 'glovo', 'uber'];
       return !allowedFields.includes(fieldName);
     }
     return true; // Usuarios normales no pueden editar nada
@@ -103,6 +103,8 @@ export default function EditEmployeeModal ({
       faltasNoCheckInEnDias: 0,
       cruce: '',
       status: 'active',
+      glovo: true,
+      uber: false,
     },
   });
 
@@ -141,6 +143,8 @@ export default function EditEmployeeModal ({
         faltasNoCheckInEnDias: employee.faltasNoCheckInEnDias || 0,
         cruce: employee.cruce || '',
         status: employee.status || 'active',
+        glovo: employee.glovo ?? true,
+        uber: employee.uber ?? false,
       });
     } else {
       form.reset({
@@ -176,6 +180,8 @@ export default function EditEmployeeModal ({
         faltasNoCheckInEnDias: 0,
         cruce: '',
         status: 'active',
+        glovo: true,
+        uber: false,
       });
     }
   }, [employee, form]);
@@ -189,6 +195,8 @@ export default function EditEmployeeModal ({
         email: data.email,
         ciudad: data.ciudad,
         complementaries: data.complementaries,
+        glovo: data.glovo,
+        uber: data.uber,
       };
 
       // Convert empty strings to null for optional fields
@@ -230,7 +238,7 @@ export default function EditEmployeeModal ({
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mt-2">
               <p className="text-sm text-blue-700">
                 <strong>Permisos de Admin:</strong> Solo puedes editar Teléfono, Email,
-                Ciudad y Horas Complementarias.
+                Ciudad, Horas Complementarias, Glovo y Uber.
               </p>
             </div>
           )}
@@ -783,7 +791,7 @@ export default function EditEmployeeModal ({
 
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-6">
                 <FormField
                   control={form.control}
                   name="informadoHorario"
@@ -799,6 +807,48 @@ export default function EditEmployeeModal ({
                       <div className="space-y-1 leading-none">
                         <FormLabel>
                           Informado de Horario
+                        </FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="glovo"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={isFieldDisabled('glovo')}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Activo en Glovo
+                        </FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="uber"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={isFieldDisabled('uber')}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Activo en Uber
                         </FormLabel>
                       </div>
                     </FormItem>

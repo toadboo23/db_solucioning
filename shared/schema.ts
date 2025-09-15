@@ -110,6 +110,8 @@ export const employees = pgTable('employees', {
   updatedAt: timestamp('updated_at').defaultNow(),
   vacacionesDisfrutadas: numeric('vacaciones_disfrutadas', { precision: 6, scale: 2 }).default('0.00'),
   vacacionesPendientes: numeric('vacaciones_pendientes', { precision: 6, scale: 2 }).default('0.00'),
+  glovo: boolean('glovo').notNull().default(true),
+  uber: boolean('uber').notNull().default(false),
 });
 
 // Company leaves table (employees with approved company leaves) - BAJA EMPRESA
