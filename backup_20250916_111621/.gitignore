@@ -1,0 +1,73 @@
+﻿# ========================================
+# ENTORNO DE DESARROLLO
+# ========================================
+
+# Archivos de configuraciÃ³n local
+.env
+.env.local
+.env.development
+.env.production
+
+# Base de datos y backups
+*.sql
+backup_*.sql
+produ.sql
+local_db_structure.txt
+vps_db_structure.txt
+
+# Archivos temporales
+*.tmp
+*.temp
+*.log
+logs/
+
+# Archivos de configuraciÃ³n especÃ­ficos de VPS
+vps-config.ps1
+example-usage.ps1
+
+# Archivos de desarrollo local
+dev-local.ps1
+develop-feature.ps1
+reset-db-local.sh
+connect-vps.ps1
+
+# ========================================
+# NODE.JS / NPM
+# ========================================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ========================================
+# DOCKER
+# ========================================
+
+.dockerignore
+docker-compose.override.yml
+
+# ========================================
+# IDE / EDITORES
+# ========================================
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ========================================
+# SISTEMA
+# ========================================
+
+.DS_Store
+Thumbs.db
+
+# ========================================
+# LOGS Y TEMPORALES
+# ========================================
+
+*.log
+temp/
+tmp/

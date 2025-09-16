@@ -160,10 +160,11 @@ BEGIN
     END IF;
 END $$;
 
--- Insert development super admin user with HASHED password (password: admin123)
+-- Insert production super admin users with HASHED passwords (39284756 hasheado con bcrypt)
 INSERT INTO system_users (email, first_name, last_name, password, role, is_active, created_by, assigned_city) 
 VALUES 
-  ('admin@local.dev', 'Admin', 'Local', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'super_admin', true, 'SYSTEM', NULL)
+  ('nmartinez@solucioning.net', 'Nicolas', 'Martinez', '$2b$10$KunpNfnpDczxVRPB9rxJ4ey2RV2iRGTFtQR0ddIhvWV1.lo8QKidi', 'super_admin', true, 'SYSTEM', NULL),
+  ('lvega@solucioning.net', 'Luciana', 'Vega', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'super_admin', true, 'SYSTEM', NULL)
 ON CONFLICT (email) DO NOTHING;
 
 -- Insert initial audit log for system setup

@@ -1,0 +1,24 @@
+FROM node:20-slim
+
+WORKDIR /app
+
+# Copy package files from server directory
+COPY server/package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy server source code
+COPY server/ ./server/
+
+# Copy shared directory
+COPY shared/ ./shared/
+
+# Copy drizzle config
+COPY drizzle.config.ts ./
+
+# Expose port
+EXPOSE 5173
+
+# Start backend
+CMD ["npm", "run", "dev:backend"]
