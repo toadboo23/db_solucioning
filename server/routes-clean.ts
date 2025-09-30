@@ -183,6 +183,7 @@ export async function registerRoutes (app: Express): Promise<Server> {
           emp.apellido?.toLowerCase().includes(searchTerm) ||
           emp.telefono?.includes(searchTerm) ||
           emp.email?.toLowerCase().includes(searchTerm) ||
+          emp.emailGlovo?.toLowerCase().includes(searchTerm) ||
           emp.idGlovo?.toLowerCase().includes(searchTerm) ||
           emp.dniNie?.toLowerCase().includes(searchTerm) // <-- Añadido filtro por dni/NIE
         );

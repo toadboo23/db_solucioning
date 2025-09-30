@@ -176,7 +176,7 @@ export class PostgresStorage {
     // }
     
     // Mantener el valor actual de vacaciones_pendientes sin calcular
-    let vacacionesPendientes = Number(currentEmployee.vacacionesPendientes || 0);
+    // let vacacionesPendientes = Number(currentEmployee.vacacionesPendientes || 0); // DESHABILITADO
 
     // Verificar si se está cambiando de it_leave a active
     const isReactivatingFromItLeave = currentEmployee.status === 'it_leave' && 
@@ -247,7 +247,7 @@ export class PostgresStorage {
     }
     // Calcular CDP automáticamente si se actualizan las horas
     const cdp = calculateCDP(employeeData.horas);
-    const employeeDataWithCDP = { ...employeeData, cdp, vacacionesPendientes };
+    const employeeDataWithCDP = { ...employeeData, cdp }; // vacacionesPendientes DESHABILITADO
     
     // Si se está cambiando el ID Glovo de un empleado pendiente, necesitamos manejar esto de forma especial
     if (isActivatingPendingEmployee && employeeData.idGlovo && employeeData.idGlovo !== id) {
