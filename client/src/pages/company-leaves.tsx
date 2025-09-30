@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select';
 import type { CompanyLeave } from '@shared/schema';
 import * as XLSX from 'xlsx';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function CompanyLeaves () {
   const { user, isAuthenticated } = useAuth();
@@ -57,6 +58,10 @@ export default function CompanyLeaves () {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [leaveTypeFilter, setLeaveTypeFilter] = useState('all');
+  
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
   
   // Estado para tracking de empleados reactivados
   const [reactivatedEmployees, setReactivatedEmployees] = useState<Set<string>>(new Set());
@@ -122,8 +127,8 @@ export default function CompanyLeaves () {
     }
   };
 
-  // Filtrar bajas según los criterios de búsqueda
-  const companyLeaves = useMemo(() => {
+  // Filtrar y ordenar bajas según los criterios de búsqueda
+  const filteredCompanyLeaves = useMemo(() => {
     if (user?.role === 'normal') return [];
 
     return allCompanyLeaves.filter(leave => {
@@ -146,8 +151,41 @@ export default function CompanyLeaves () {
       const leaveTypeMatch = leaveTypeFilter === 'all' || leave.leaveType === leaveTypeFilter;
 
       return searchMatch && statusMatch && leaveTypeMatch;
+    }).sort((a, b) => {
+      // Ordenar de más recientes a más antiguos por fecha de creación
+      const dateA = new Date(a.createdAt || a.leaveDate).getTime();
+      const dateB = new Date(b.createdAt || b.leaveDate).getTime();
+      return dateB - dateA; // DESC (más recientes primero)
     });
   }, [allCompanyLeaves, searchTerm, statusFilter, leaveTypeFilter, user?.role]);
+
+  // Calcular paginación
+  const totalPages = Math.ceil(filteredCompanyLeaves.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const companyLeaves = filteredCompanyLeaves.slice(startIndex, endIndex);
+
+  // Resetear página cuando cambian los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, leaveTypeFilter]);
+
+  // Funciones de navegación de páginas
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
 
   useEffect(() => {
     if (user?.role === 'normal') {
@@ -462,8 +500,15 @@ export default function CompanyLeaves () {
       {/* Tabla de bajas empresa */}
       <Card>
         <CardHeader>
-          <CardTitle>Bajas Empresa ({companyLeaves.length})</CardTitle>
-          <CardDescription>Lista de empleados con bajas empresa procesadas</CardDescription>
+          <CardTitle>Bajas Empresa ({filteredCompanyLeaves.length})</CardTitle>
+          <CardDescription>
+            Lista de empleados con bajas empresa procesadas
+            {filteredCompanyLeaves.length > 0 && (
+              <span className="text-sm text-gray-600 ml-2">
+                (Mostrando {startIndex + 1} a {Math.min(endIndex, filteredCompanyLeaves.length)} de {filteredCompanyLeaves.length})
+              </span>
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {companyLeaves.length === 0 ? (
@@ -576,6 +621,76 @@ export default function CompanyLeaves () {
           )}
         </CardContent>
       </Card>
+
+      {/* Controles de paginación */}
+      {totalPages > 1 && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Mostrando {startIndex + 1} a {Math.min(endIndex, filteredCompanyLeaves.length)} de {filteredCompanyLeaves.length} registros
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                  className="flex items-center"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Anterior
+                </Button>
+                
+                {/* Números de página */}
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    // Mostrar solo algunas páginas para evitar demasiados botones
+                    if (
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1)
+                    ) {
+                      return (
+                        <Button
+                          key={page}
+                          variant={page === currentPage ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handlePageChange(page)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {page}
+                        </Button>
+                      );
+                    } else if (
+                      page === currentPage - 2 ||
+                      page === currentPage + 2
+                    ) {
+                      return (
+                        <span key={page} className="px-2 text-gray-500">
+                          ...
+                        </span>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="flex items-center"
+                >
+                  Siguiente
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
