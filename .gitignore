@@ -30,6 +30,47 @@ dev-local.ps1
 develop-feature.ps1
 reset-db-local.sh
 connect-vps.ps1
+fix-database.ps1
+cleanup-*.ps1
+
+# Carpetas de backup
+backup_*/
+
+# Archivos CSV con informaciÃ³n sensible
+*.csv
+informe_*.csv
+reporte_*.csv
+all_employees_*.csv
+sage_*.csv
+
+# Scripts de desarrollo y sincronizaciÃ³n
+*-vps.ps1
+connect-*.ps1
+setup-*.ps1
+comparativa-*.ps1
+restart-*.ps1
+sync-*.ps1
+upload-*.ps1
+apply-*.ps1
+ejecutar-*.ps1
+clean-*.ps1
+*.cjs
+
+# Scripts Python de desarrollo local
+actualizar_*.py
+crear_*.py
+
+# Scripts Shell obsoletos
+deploy-glovo-uber-fields.sh
+
+# Claves SSH
+vps-tickets
+vps-tickets.pub
+*.pem
+*.key
+
+# Docker data
+docker-data/
 
 # ========================================
 # NODE.JS / NPM
