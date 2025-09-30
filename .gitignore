@@ -60,6 +60,9 @@ clean-*.ps1
 actualizar_*.py
 crear_*.py
 
+# Scripts Shell obsoletos
+deploy-glovo-uber-fields.sh
+
 # Claves SSH
 vps-tickets
 vps-tickets.pub
