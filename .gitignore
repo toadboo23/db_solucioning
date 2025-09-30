@@ -30,6 +30,8 @@ dev-local.ps1
 develop-feature.ps1
 reset-db-local.sh
 connect-vps.ps1
+fix-database.ps1
+cleanup-*.ps1
 
 # Carpetas de backup
 backup_*/
@@ -53,6 +55,10 @@ apply-*.ps1
 ejecutar-*.ps1
 clean-*.ps1
 *.cjs
+
+# Scripts Python de desarrollo local
+actualizar_*.py
+crear_*.py
 
 # Claves SSH
 vps-tickets
