@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Eye, Edit, UserX, AlertTriangle, RotateCcw } from 'lucide-react';
 import type { Employee } from '@shared/schema';
+import { useState, useEffect } from 'react';
+import { apiRequest } from '@/lib/queryClient';
 
 interface EmployeeTableProps {
   employees: Employee[];
@@ -33,7 +35,47 @@ export default function EmployeeTable ({
   canEdit,
   isReadOnlyUser = false,
 }: EmployeeTableProps) {
+  const [pendingNotifications, setPendingNotifications] = useState<Set<string>>(new Set());
+
+  // Función para verificar notificaciones pendientes de un empleado
+  const checkPendingNotifications = async (employeeId: string) => {
+    try {
+      const response = await apiRequest(`/api/notifications/employee/${employeeId}/pending`);
+      if (response.ok) {
+        const data = await response.json();
+        return data.hasPending;
+      }
+    } catch (error) {
+      console.error('Error checking pending notifications:', error);
+    }
+    return false;
+  };
+
+  // Verificar notificaciones pendientes para todos los empleados
+  useEffect(() => {
+    const checkAllNotifications = async () => {
+      const pendingSet = new Set<string>();
+      
+      for (const employee of employees) {
+        if (employee.idGlovo) {
+          const hasPending = await checkPendingNotifications(employee.idGlovo);
+          if (hasPending) {
+            pendingSet.add(employee.idGlovo);
+          }
+        }
+      }
+      
+      setPendingNotifications(pendingSet);
+    };
+
+    if (employees.length > 0) {
+      checkAllNotifications();
+    }
+  }, [employees]);
   const getStatusBadge = (status: string, employee: Employee) => {
+    // Check if employee has pending notifications
+    const hasPendingNotification = pendingNotifications.has(employee.idGlovo || '');
+    
     // Check if employee has scheduled penalization
     const hasScheduledPenalization = employee.penalizationStartDate && 
       employee.penalizationEndDate && 
@@ -42,6 +84,11 @@ export default function EmployeeTable ({
 
     if (hasScheduledPenalization) {
       return <Badge className="bg-blue-100 text-blue-800">Penalización Programada</Badge>;
+    }
+
+    // Si el empleado tiene notificaciones pendientes y está activo, mostrar estado especial
+    if (hasPendingNotification && status === 'active') {
+      return <Badge className="bg-orange-100 text-orange-800">Notificación Pendiente</Badge>;
     }
 
     switch (status) {

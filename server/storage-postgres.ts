@@ -47,6 +47,49 @@ export const calculateCDP = (horas: number | null | undefined): number => {
   return Math.round((horas / 38) * 100);
 };
 
+// Helper function to validate if employee can be terminated
+export const canEmployeeBeTerminated = (employee: Employee | undefined): { canTerminate: boolean; reason?: string } => {
+  if (!employee) {
+    return { canTerminate: false, reason: 'Empleado no encontrado' };
+  }
+
+  // Check if employee is penalized
+  if (employee.status === 'penalizado') {
+    return { canTerminate: false, reason: 'No se puede dar de baja a un empleado en estado penalizado' };
+  }
+
+  // Check if employee is on vacation (assuming vacation status exists)
+  if (employee.status === 'vacaciones') {
+    return { canTerminate: false, reason: 'No se puede dar de baja a un empleado en vacaciones' };
+  }
+
+  // Check if employee is on IT leave
+  if (employee.status === 'it_leave') {
+    return { canTerminate: false, reason: 'No se puede dar de baja a un empleado en baja IT' };
+  }
+
+  // Check if employee is already terminated
+  if (employee.status === 'company_leave_approved' || employee.status === 'company_leave_pending') {
+    return { canTerminate: false, reason: 'El empleado ya tiene una solicitud de baja empresa en proceso' };
+  }
+
+  return { canTerminate: true };
+};
+
+// Helper function to check if employee has pending notifications
+export const hasEmployeePendingNotifications = async (employeeId: string, storage: PostgresStorage): Promise<{ hasPending: boolean; notification?: any }> => {
+  try {
+    const pendingNotifications = await storage.getNotificationsByEmployee(employeeId, ['pending', 'pending_laboral']);
+    return {
+      hasPending: pendingNotifications.length > 0,
+      notification: pendingNotifications[0] || null
+    };
+  } catch (error) {
+    console.error('Error checking pending notifications:', error);
+    return { hasPending: false };
+  }
+};
+
 // Type for upsert user operation
 type UpsertUser = InsertSystemUser & { id: number };
 
@@ -419,6 +462,22 @@ export class PostgresStorage {
 
   async deleteNotification (id: number): Promise<void> {
     await db.delete(notifications).where(eq(notifications.id, id));
+  }
+
+  async getNotificationsByEmployee (employeeId: string, statuses: string[]): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(
+        and(
+          or(
+            eq(sql`${notifications.metadata}->>'employeeId'`, employeeId),
+            eq(sql`${notifications.metadata}->>'idGlovo'`, employeeId)
+          ),
+          inArray(notifications.status, statuses)
+        )
+      )
+      .orderBy(desc(notifications.createdAt));
   }
 
   // Dashboard metrics

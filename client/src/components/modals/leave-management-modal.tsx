@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { isUnauthorizedError } from '@/lib/authUtils';
@@ -33,6 +33,58 @@ export default function LeaveManagementModal ({
   const [companyReason, setCompanyReason] = useState<'despido' | 'voluntaria' | 'nspp' | 'anulacion' | 'fin_contrato_temporal' | 'agotamiento_it' | 'otras_causas' | ''>('');
   const [leaveDate, setLeaveDate] = useState('');
   const [otherReasonText, setOtherReasonText] = useState('');
+  const [pendingNotification, setPendingNotification] = useState<any>(null);
+
+  // Función para validar si el empleado puede ser dado de baja
+  const canEmployeeBeTerminated = (emp: Employee | null): { canTerminate: boolean; reason?: string } => {
+    if (!emp) {
+      return { canTerminate: false, reason: 'Empleado no encontrado' };
+    }
+
+    // Check if employee is penalized
+    if (emp.status === 'penalizado') {
+      return { canTerminate: false, reason: 'No se puede dar de baja a un empleado en estado penalizado' };
+    }
+
+    // Check if employee is on vacation (assuming vacation status exists)
+    if (emp.status === 'vacaciones') {
+      return { canTerminate: false, reason: 'No se puede dar de baja a un empleado en vacaciones' };
+    }
+
+    // Check if employee is on IT leave
+    if (emp.status === 'it_leave') {
+      return { canTerminate: false, reason: 'No se puede dar de baja a un empleado en baja IT' };
+    }
+
+    // Check if employee is already terminated
+    if (emp.status === 'company_leave_approved' || emp.status === 'company_leave_pending') {
+      return { canTerminate: false, reason: 'El empleado ya tiene una solicitud de baja empresa en proceso' };
+    }
+
+    return { canTerminate: true };
+  };
+
+  // Función para verificar notificaciones pendientes
+  const checkPendingNotifications = async (employeeId: string) => {
+    try {
+      const response = await apiRequest(`/api/notifications/employee/${employeeId}/pending`);
+      if (response.ok) {
+        const data = await response.json();
+        setPendingNotification(data.pendingNotification);
+      }
+    } catch (error) {
+      console.error('Error checking pending notifications:', error);
+    }
+  };
+
+  // Verificar notificaciones pendientes cuando se abre el modal
+  useEffect(() => {
+    if (isOpen && employee?.idGlovo) {
+      checkPendingNotifications(employee.idGlovo);
+    }
+  }, [isOpen, employee?.idGlovo]);
+
+  const validation = canEmployeeBeTerminated(employee);
 
   const itLeaveMutation = useMutation({
     mutationFn: async (data: { leaveType: string; leaveDate: Date }) => {
@@ -202,21 +254,60 @@ export default function LeaveManagementModal ({
                 </h4>
                 <p className="text-sm text-gray-600">ID Glovo: {employee.idGlovo}</p>
                 <p className="text-sm text-gray-600">Teléfono: {employee.telefono}</p>
+                <p className="text-sm text-gray-600">Estado: {employee.status}</p>
               </CardContent>
             </Card>
           )}
 
-          <div>
+          {/* Mostrar mensaje de error si el empleado no puede ser dado de baja */}
+          {!validation.canTerminate && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-5 h-5 text-red-500">⚠️</div>
+                  <div>
+                    <h4 className="font-medium text-red-800">No se puede procesar la baja</h4>
+                    <p className="text-sm text-red-600 mt-1">{validation.reason}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Mostrar advertencia si hay notificaciones pendientes */}
+          {pendingNotification && (
+            <Card className="border-orange-200 bg-orange-50">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-5 h-5 text-orange-500">⚠️</div>
+                  <div>
+                    <h4 className="font-medium text-orange-800">Notificación Pendiente</h4>
+                    <p className="text-sm text-orange-600 mt-1">
+                      Este empleado ya tiene una notificación pendiente de ser atendida. 
+                      No se puede generar una nueva solicitud hasta que se resuelva la anterior.
+                    </p>
+                    {pendingNotification.title && (
+                      <p className="text-xs text-orange-500 mt-2">
+                        Notificación pendiente: {pendingNotification.title}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className={(!validation.canTerminate || pendingNotification) ? 'opacity-50 pointer-events-none' : ''}>
             <Label className="text-sm font-medium text-gray-700 mb-3 block">
               Tipo de Baja
             </Label>
             <RadioGroup value={leaveType} onValueChange={(value: 'it' | 'company') => setLeaveType(value)}>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="it" id="it" />
+                <RadioGroupItem value="it" id="it" disabled={!validation.canTerminate || pendingNotification} />
                 <Label htmlFor="it">Baja IT</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="company" id="company" />
+                <RadioGroupItem value="company" id="company" disabled={!validation.canTerminate || pendingNotification} />
                 <Label htmlFor="company">Baja Empresa</Label>
               </div>
             </RadioGroup>
@@ -321,7 +412,7 @@ export default function LeaveManagementModal ({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={itLeaveMutation.isPending || companyLeaveMutation.isPending}
+              disabled={!validation.canTerminate || pendingNotification || itLeaveMutation.isPending || companyLeaveMutation.isPending}
               className="bg-orange-600 hover:bg-orange-700"
             >
               {itLeaveMutation.isPending || companyLeaveMutation.isPending

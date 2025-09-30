@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import { createServer, type Server } from 'http';
-import { PostgresStorage, getEmpleadoMetadata } from './storage-postgres.js';
+import { PostgresStorage, getEmpleadoMetadata, canEmployeeBeTerminated, hasEmployeePendingNotifications } from './storage-postgres.js';
 import { setupAuth, isAuthenticated } from './auth-local.js';
 import { AuditService } from './audit-service.js';
 import multer from 'multer';
@@ -801,6 +801,24 @@ export async function registerRoutes (app: Express): Promise<Server> {
         });
       }
 
+      // Validar que el empleado puede ser dado de baja
+      const employee = await storage.getEmployee(leaveData.employeeId);
+      const validation = canEmployeeBeTerminated(employee);
+      if (!validation.canTerminate) {
+        return res.status(400).json({ 
+          message: validation.reason 
+        });
+      }
+
+      // Validar que el empleado no tenga notificaciones pendientes
+      const pendingCheck = await hasEmployeePendingNotifications(leaveData.employeeId, storage);
+      if (pendingCheck.hasPending) {
+        return res.status(400).json({ 
+          message: `El empleado ya tiene una notificación pendiente de ser atendida. No se puede generar una nueva solicitud.`,
+          pendingNotification: pendingCheck.notification
+        });
+      }
+
       // Validar que 'otras_causas' tenga comentarios
       let comments = null;
       if (leaveData.leaveType === 'otras_causas') {
@@ -970,6 +988,25 @@ export async function registerRoutes (app: Express): Promise<Server> {
       }
 
       const leaveData = req.body;
+      
+      // Validar que el empleado puede ser dado de baja
+      const employee = await storage.getEmployee(leaveData.employeeId);
+      const validation = canEmployeeBeTerminated(employee);
+      if (!validation.canTerminate) {
+        return res.status(400).json({ 
+          message: validation.reason 
+        });
+      }
+
+      // Validar que el empleado no tenga notificaciones pendientes
+      const pendingCheck = await hasEmployeePendingNotifications(leaveData.employeeId, storage);
+      if (pendingCheck.hasPending) {
+        return res.status(400).json({ 
+          message: `El empleado ya tiene una notificación pendiente de ser atendida. No se puede generar una nueva solicitud.`,
+          pendingNotification: pendingCheck.notification
+        });
+      }
+
       const leave = await storage.createItLeave(leaveData);
 
       // Log audit for IT leave creation
@@ -1546,6 +1583,24 @@ export async function registerRoutes (app: Express): Promise<Server> {
       const { leaveType, leaveDate } = req.body;
       const now = new Date();
 
+      // Validar que el empleado puede ser dado de baja
+      const employee = await storage.getEmployee(id);
+      const validation = canEmployeeBeTerminated(employee);
+      if (!validation.canTerminate) {
+        return res.status(400).json({ 
+          message: validation.reason 
+        });
+      }
+
+      // Validar que el empleado no tenga notificaciones pendientes
+      const pendingCheck = await hasEmployeePendingNotifications(id, storage);
+      if (pendingCheck.hasPending) {
+        return res.status(400).json({ 
+          message: `El empleado ya tiene una notificación pendiente de ser atendida. No se puede generar una nueva solicitud.`,
+          pendingNotification: pendingCheck.notification
+        });
+      }
+
       // Actualizar estado y fecha en employees
       const updatedEmployee = await storage.setEmployeeItLeave(id, leaveDate || now);
 
@@ -1766,6 +1821,18 @@ export async function registerRoutes (app: Express): Promise<Server> {
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') console.error('❌ Error logging page access:', error);
       res.status(500).json({ message: 'Failed to log page access' });
+    }
+  });
+
+  // Get pending notifications for an employee
+  app.get('/api/notifications/employee/:employeeId/pending', isAuthenticated, async (req: any, res) => {
+    try {
+      const { employeeId } = req.params;
+      const pendingCheck = await hasEmployeePendingNotifications(employeeId, storage);
+      res.json(pendingCheck);
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') console.error('❌ Error fetching pending notifications:', error);
+      res.status(500).json({ message: 'Failed to fetch pending notifications' });
     }
   });
 
