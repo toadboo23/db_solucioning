@@ -118,7 +118,7 @@ export default function Employees () {
     try {
       // Sincronizar last_order automáticamente al cargar empleados
       if (user?.role === 'admin' || user?.role === 'super_admin') {
-        const syncResponse = await fetch('/api/employees/sync-last-order', {
+        const syncResponse = await fetch('/api/employees/sync-work-equipment', {
           method: 'POST',
           credentials: 'include',
         });
@@ -543,7 +543,7 @@ export default function Employees () {
       
       // Sincronizar last_order automáticamente después de importar Fleet
       try {
-        const syncResponse = await fetch('/api/employees/sync-last-order', {
+        const syncResponse = await fetch('/api/employees/sync-work-equipment', {
           method: 'POST',
           credentials: 'include',
         });
@@ -552,7 +552,7 @@ export default function Employees () {
           const syncResult = await syncResponse.json();
           if (syncResult.updated > 0) {
             toast({
-              title: 'Last Order Actualizado',
+              title: 'Work Equipment Actualizado',
               description: `${syncResult.updated} registros de last_order actualizados automáticamente`,
               variant: 'default',
             });

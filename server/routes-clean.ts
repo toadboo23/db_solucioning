@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import { createServer, type Server } from 'http';
-import { PostgresStorage, getEmpleadoMetadata, canEmployeeBeTerminated, hasEmployeePendingNotifications } from './storage-postgres.js';
+import { PostgresStorage, getEmpleadoMetadata } from './storage-postgres.js';
 import { setupAuth, isAuthenticated } from './auth-local.js';
 import { AuditService } from './audit-service.js';
 import multer from 'multer';
@@ -801,24 +801,6 @@ export async function registerRoutes (app: Express): Promise<Server> {
         });
       }
 
-      // Validar que el empleado puede ser dado de baja
-      const employee = await storage.getEmployee(leaveData.employeeId);
-      const validation = canEmployeeBeTerminated(employee);
-      if (!validation.canTerminate) {
-        return res.status(400).json({ 
-          message: validation.reason 
-        });
-      }
-
-      // Validar que el empleado no tenga notificaciones pendientes
-      const pendingCheck = await hasEmployeePendingNotifications(leaveData.employeeId, storage);
-      if (pendingCheck.hasPending) {
-        return res.status(400).json({ 
-          message: `El empleado ya tiene una notificación pendiente de ser atendida. No se puede generar una nueva solicitud.`,
-          pendingNotification: pendingCheck.notification
-        });
-      }
-
       // Validar que 'otras_causas' tenga comentarios
       let comments = null;
       if (leaveData.leaveType === 'otras_causas') {
@@ -988,25 +970,6 @@ export async function registerRoutes (app: Express): Promise<Server> {
       }
 
       const leaveData = req.body;
-      
-      // Validar que el empleado puede ser dado de baja
-      const employee = await storage.getEmployee(leaveData.employeeId);
-      const validation = canEmployeeBeTerminated(employee);
-      if (!validation.canTerminate) {
-        return res.status(400).json({ 
-          message: validation.reason 
-        });
-      }
-
-      // Validar que el empleado no tenga notificaciones pendientes
-      const pendingCheck = await hasEmployeePendingNotifications(leaveData.employeeId, storage);
-      if (pendingCheck.hasPending) {
-        return res.status(400).json({ 
-          message: `El empleado ya tiene una notificación pendiente de ser atendida. No se puede generar una nueva solicitud.`,
-          pendingNotification: pendingCheck.notification
-        });
-      }
-
       const leave = await storage.createItLeave(leaveData);
 
       // Log audit for IT leave creation
@@ -1583,26 +1546,8 @@ export async function registerRoutes (app: Express): Promise<Server> {
       const { leaveType, leaveDate } = req.body;
       const now = new Date();
 
-      // Validar que el empleado puede ser dado de baja
-      const employee = await storage.getEmployee(id);
-      const validation = canEmployeeBeTerminated(employee);
-      if (!validation.canTerminate) {
-        return res.status(400).json({ 
-          message: validation.reason 
-        });
-      }
-
-      // Validar que el empleado no tenga notificaciones pendientes
-      const pendingCheck = await hasEmployeePendingNotifications(id, storage);
-      if (pendingCheck.hasPending) {
-        return res.status(400).json({ 
-          message: `El empleado ya tiene una notificación pendiente de ser atendida. No se puede generar una nueva solicitud.`,
-          pendingNotification: pendingCheck.notification
-        });
-      }
-
       // Actualizar estado y fecha en employees
-      const updatedEmployee = await storage.setEmployeeItLeave(id, leaveDate || now);
+      const updatedEmployee = await storage.setEmployeeItLeave(id, leaveDate || now, leaveType);
 
       // Log audit for IT leave creation
       await AuditService.logAction({
@@ -1660,7 +1605,7 @@ export async function registerRoutes (app: Express): Promise<Server> {
         newData: { exportType: 'csv', employeeCount: employees.length },
       });
 
-      // Convertir datos a CSV con solo los campos exactos de employees + last_order como segunda columna
+      // Convertir datos a CSV con solo los campos exactos de employees + work_equipment como segunda columna
       const csvHeaders = [
         'ID Glovo',
         'Last Order', // Campo Last Order como segunda columna
@@ -1772,13 +1717,13 @@ export async function registerRoutes (app: Express): Promise<Server> {
     }
   });
 
-  // Sincronizar last_order desde couriers_export (protected - admin/super_admin only)
-  app.post('/api/employees/sync-last-order', isAuthenticated, async (req: any, res) => {
-    if (process.env.NODE_ENV !== 'production') console.log('🔄 Sync last order request');
+  // Sincronizar work_equipment desde couriers_export (protected - admin/super_admin only)
+  app.post('/api/employees/sync-work-equipment', isAuthenticated, async (req: any, res) => {
+    if (process.env.NODE_ENV !== 'production') console.log('🔄 Sync work equipment request');
     try {
       const user = req.user as { email?: string; role?: string };
       if (user?.role === 'normal') {
-        return res.status(403).json({ message: 'No tienes permisos para sincronizar last_order' });
+        return res.status(403).json({ message: 'No tienes permisos para sincronizar work_equipment' });
       }
 
       const result = await storage.syncLastOrderFromCouriers();
@@ -1787,16 +1732,16 @@ export async function registerRoutes (app: Express): Promise<Server> {
       await AuditService.logAction({
         userId: user.email || '',
         userRole: (user.role as 'super_admin' | 'admin') || 'normal',
-        action: 'sync_last_order',
+        action: 'sync_work_equipment',
         entityType: 'employee',
-        description: `Sincronización de last_order - Usuario: ${user.email} - Registros actualizados: ${result.updated}`,
+        description: `Sincronización de work_equipment - Usuario: ${user.email} - Registros actualizados: ${result.updated}`,
         newData: { updated: result.updated, errors: result.errors },
       });
 
       res.json(result);
     } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error syncing last order:', error);
-      res.status(500).json({ message: 'Failed to sync last order' });
+      if (process.env.NODE_ENV !== 'production') console.error('❌ Error syncing work equipment:', error);
+      res.status(500).json({ message: 'Failed to sync work equipment' });
     }
   });
 
@@ -1821,18 +1766,6 @@ export async function registerRoutes (app: Express): Promise<Server> {
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') console.error('❌ Error logging page access:', error);
       res.status(500).json({ message: 'Failed to log page access' });
-    }
-  });
-
-  // Get pending notifications for an employee
-  app.get('/api/notifications/employee/:employeeId/pending', isAuthenticated, async (req: any, res) => {
-    try {
-      const { employeeId } = req.params;
-      const pendingCheck = await hasEmployeePendingNotifications(employeeId, storage);
-      res.json(pendingCheck);
-    } catch (error) {
-      if (process.env.NODE_ENV !== 'production') console.error('❌ Error fetching pending notifications:', error);
-      res.status(500).json({ message: 'Failed to fetch pending notifications' });
     }
   });
 

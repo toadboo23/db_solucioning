@@ -80,10 +80,10 @@ class SchedulerService {
       }
     }, 60 * 1000); // Verificar cada minuto
 
-    // Sincronización automática de last order cada 6 horas
+    // Sincronización automática de work equipment cada 6 horas
     this.lastOrderSyncInterval = setInterval(async () => {
       try {
-        console.log('🔄 Ejecutando sincronización automática de last order...');
+        console.log('🔄 Ejecutando sincronización automática de work equipment...');
         const result = await this.storage.syncLastOrderFromCouriers();
         
         if (result.updated > 0) {
@@ -97,7 +97,7 @@ class SchedulerService {
     }, 6 * 60 * 60 * 1000); // 6 horas en milisegundos
 
     console.log('✅ Programador de tareas iniciado');
-    console.log('⏰ Sincronización automática de last order configurada cada 6 horas');
+    console.log('⏰ Sincronización automática de work equipment configurada cada 6 horas');
   }
 
   /**

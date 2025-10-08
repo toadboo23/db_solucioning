@@ -93,7 +93,8 @@ export default function EmployeeDetailModal ({
       case 'active':
         return <Badge className="bg-green-100 text-green-800">Activo</Badge>;
       case 'it_leave':
-        return <Badge className="bg-orange-100 text-orange-800">Baja IT</Badge>;
+        const itReason = employee.itLeaveReason ? ` - ${employee.itLeaveReason.charAt(0).toUpperCase() + employee.itLeaveReason.slice(1)}` : '';
+        return <Badge className="bg-orange-100 text-orange-800">Baja IT{itReason}</Badge>;
       case 'company_leave_pending':
         return <Badge className="bg-yellow-100 text-yellow-800">Baja Empresa Pendiente</Badge>;
       case 'company_leave_approved':

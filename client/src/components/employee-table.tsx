@@ -11,8 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Eye, Edit, UserX, AlertTriangle, RotateCcw } from 'lucide-react';
 import type { Employee } from '@shared/schema';
-import { useState, useEffect } from 'react';
-import { apiRequest } from '@/lib/queryClient';
 
 interface EmployeeTableProps {
   employees: Employee[];
@@ -35,47 +33,7 @@ export default function EmployeeTable ({
   canEdit,
   isReadOnlyUser = false,
 }: EmployeeTableProps) {
-  const [pendingNotifications, setPendingNotifications] = useState<Set<string>>(new Set());
-
-  // Función para verificar notificaciones pendientes de un empleado
-  const checkPendingNotifications = async (employeeId: string) => {
-    try {
-      const response = await apiRequest(`/api/notifications/employee/${employeeId}/pending`);
-      if (response.ok) {
-        const data = await response.json();
-        return data.hasPending;
-      }
-    } catch (error) {
-      console.error('Error checking pending notifications:', error);
-    }
-    return false;
-  };
-
-  // Verificar notificaciones pendientes para todos los empleados
-  useEffect(() => {
-    const checkAllNotifications = async () => {
-      const pendingSet = new Set<string>();
-      
-      for (const employee of employees) {
-        if (employee.idGlovo) {
-          const hasPending = await checkPendingNotifications(employee.idGlovo);
-          if (hasPending) {
-            pendingSet.add(employee.idGlovo);
-          }
-        }
-      }
-      
-      setPendingNotifications(pendingSet);
-    };
-
-    if (employees.length > 0) {
-      checkAllNotifications();
-    }
-  }, [employees]);
   const getStatusBadge = (status: string, employee: Employee) => {
-    // Check if employee has pending notifications
-    const hasPendingNotification = pendingNotifications.has(employee.idGlovo || '');
-    
     // Check if employee has scheduled penalization
     const hasScheduledPenalization = employee.penalizationStartDate && 
       employee.penalizationEndDate && 
@@ -86,18 +44,14 @@ export default function EmployeeTable ({
       return <Badge className="bg-blue-100 text-blue-800">Penalización Programada</Badge>;
     }
 
-    // Si el empleado tiene notificaciones pendientes y está activo, mostrar estado especial
-    if (hasPendingNotification && status === 'active') {
-      return <Badge className="bg-orange-100 text-orange-800">Notificación Pendiente</Badge>;
-    }
-
     switch (status) {
       case 'active':
         return <Badge className="bg-green-100 text-green-800">Activo</Badge>;
       case 'pendiente_activacion':
         return <Badge className="bg-blue-100 text-blue-800">Pendiente Activación</Badge>;
       case 'it_leave':
-        return <Badge className="bg-orange-100 text-orange-800">Baja IT</Badge>;
+        const itReason = employee.itLeaveReason ? ` - ${employee.itLeaveReason.charAt(0).toUpperCase() + employee.itLeaveReason.slice(1)}` : '';
+        return <Badge className="bg-orange-100 text-orange-800">Baja IT{itReason}</Badge>;
       // Los estados company_leave_pending y company_leave_approved ya no se usan
       // Los empleados permanecen 'active' hasta que se tramite la pendiente laboral
       case 'pending_laboral':
@@ -141,7 +95,7 @@ export default function EmployeeTable ({
                 <TableHead>Estado</TableHead>
                 <TableHead>Glovo</TableHead>
                 <TableHead>Uber</TableHead>
-                <TableHead>Last Order</TableHead>
+                <TableHead>Work Equipment</TableHead>
                 <TableHead>Horas</TableHead>
                 <TableHead>CDP%</TableHead>
                 <TableHead>Complementarias</TableHead>
@@ -190,12 +144,12 @@ export default function EmployeeTable ({
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {employee.lastOrder ? (
+                    {employee.workEquipment ? (
                       <span className="text-sm text-gray-600">
                         {(() => {
                           try {
                             // Parsear el formato: 2025-08-28 21:30:48.0
-                            const date = new Date(employee.lastOrder);
+                            const date = new Date(employee.workEquipment);
                             if (isNaN(date.getTime())) {
                               return 'Formato inválido';
                             }

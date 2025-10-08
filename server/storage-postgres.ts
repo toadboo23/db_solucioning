@@ -47,49 +47,6 @@ export const calculateCDP = (horas: number | null | undefined): number => {
   return Math.round((horas / 38) * 100);
 };
 
-// Helper function to validate if employee can be terminated
-export const canEmployeeBeTerminated = (employee: Employee | undefined): { canTerminate: boolean; reason?: string } => {
-  if (!employee) {
-    return { canTerminate: false, reason: 'Empleado no encontrado' };
-  }
-
-  // Check if employee is penalized
-  if (employee.status === 'penalizado') {
-    return { canTerminate: false, reason: 'No se puede dar de baja a un empleado en estado penalizado' };
-  }
-
-  // Check if employee is on vacation (assuming vacation status exists)
-  if (employee.status === 'vacaciones') {
-    return { canTerminate: false, reason: 'No se puede dar de baja a un empleado en vacaciones' };
-  }
-
-  // Check if employee is on IT leave
-  if (employee.status === 'it_leave') {
-    return { canTerminate: false, reason: 'No se puede dar de baja a un empleado en baja IT' };
-  }
-
-  // Check if employee is already terminated
-  if (employee.status === 'company_leave_approved' || employee.status === 'company_leave_pending') {
-    return { canTerminate: false, reason: 'El empleado ya tiene una solicitud de baja empresa en proceso' };
-  }
-
-  return { canTerminate: true };
-};
-
-// Helper function to check if employee has pending notifications
-export const hasEmployeePendingNotifications = async (employeeId: string, storage: PostgresStorage): Promise<{ hasPending: boolean; notification?: any }> => {
-  try {
-    const pendingNotifications = await storage.getNotificationsByEmployee(employeeId, ['pending', 'pending_laboral']);
-    return {
-      hasPending: pendingNotifications.length > 0,
-      notification: pendingNotifications[0] || null
-    };
-  } catch (error) {
-    console.error('Error checking pending notifications:', error);
-    return { hasPending: false };
-  }
-};
-
 // Type for upsert user operation
 type UpsertUser = InsertSystemUser & { id: number };
 
@@ -462,22 +419,6 @@ export class PostgresStorage {
 
   async deleteNotification (id: number): Promise<void> {
     await db.delete(notifications).where(eq(notifications.id, id));
-  }
-
-  async getNotificationsByEmployee (employeeId: string, statuses: string[]): Promise<Notification[]> {
-    return await db
-      .select()
-      .from(notifications)
-      .where(
-        and(
-          or(
-            eq(sql`${notifications.metadata}->>'employeeId'`, employeeId),
-            eq(sql`${notifications.metadata}->>'idGlovo'`, employeeId)
-          ),
-          inArray(notifications.status, statuses)
-        )
-      )
-      .orderBy(desc(notifications.createdAt));
   }
 
   // Dashboard metrics
@@ -1225,7 +1166,8 @@ export class PostgresStorage {
     }
   }
 
-  async setEmployeeItLeave (employeeId: string, fechaIncidencia: string | Date): Promise<Employee> {
+
+  async setEmployeeItLeave (employeeId: string, fechaIncidencia: string | Date, leaveType?: string): Promise<Employee> {
     const now = new Date();
     
     // Primero obtener el empleado actual para guardar sus horas originales
@@ -1245,6 +1187,7 @@ export class PostgresStorage {
       .update(employees)
       .set({
         status: 'it_leave',
+        itLeaveReason: leaveType || null,
         fechaIncidencia: fechaIncidencia || now,
         originalHours: originalHours, // Guardar las horas originales
         horas: 0, // Poner las horas actuales a 0
@@ -1686,12 +1629,12 @@ export class PostgresStorage {
     }
   }
 
-  // Sincronización de last_order desde couriers_export
+  // Sincronización de work_equipment desde couriers_export
   async syncLastOrderFromCouriers(): Promise<{ updated: number; errors: string[] }> {
     try {
       // Verificar si ya se sincronizó en las últimas 6 horas
       const lastSyncCheck = await db.execute(
-        sql`SELECT last_sync FROM sync_control WHERE sync_type = 'last_order' LIMIT 1`
+        sql`SELECT last_sync FROM sync_control WHERE sync_type = 'work_equipment' LIMIT 1`
       );
       
       if (lastSyncCheck.rows.length > 0) {
@@ -1699,27 +1642,27 @@ export class PostgresStorage {
         const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
         
         if (lastSync > sixHoursAgo) {
-          console.log('Last order sync skipped - already synced within 6 hours');
+          console.log('Work equipment sync skipped - already synced within 6 hours');
           return { updated: 0, errors: ['Already synced within 6 hours'] };
         }
       }
       
       // Ejecutar sincronización
       const result = await db.execute(
-        sql`SELECT sync_last_order_from_couriers() as updated_count`
+        sql`SELECT sync_work_equipment_from_couriers() as updated_count`
       );
       
       const updated = Number(result.rows[0]?.updated_count) || 0;
       
       // Actualizar control de sincronización
       await db.execute(
-        sql`UPDATE sync_control SET last_sync = NOW(), records_updated = ${updated} WHERE sync_type = 'last_order'`
+        sql`UPDATE sync_control SET last_sync = NOW(), records_updated = ${updated} WHERE sync_type = 'work_equipment'`
       );
       
-      console.log(`✅ Last order sync completed: ${updated} records updated`);
+      console.log(`✅ Work equipment sync completed: ${updated} records updated`);
       return { updated, errors: [] };
     } catch (error) {
-      console.error('❌ Error syncing last order:', error);
+      console.error('❌ Error syncing work equipment:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       return { updated: 0, errors: [errorMessage] };
     }
@@ -1740,7 +1683,7 @@ export class PostgresStorage {
       const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
       
       // Verificar que los encabezados requeridos estén presentes
-      const requiredHeaders = ['Courier ID', 'Platform', 'Status', 'Courier name', 'Last order date'];
+      const requiredHeaders = ['Courier ID', 'Platform', 'Status', 'Courier name', 'Work equipment date'];
       const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
       
       if (missingHeaders.length > 0) {
@@ -1791,7 +1734,7 @@ export class PostgresStorage {
                 "Delivered orders", "Bad ratings", "Average delivery time (min)", 
                 "Earnings glovo", "Earnings tips", "Earnings KM", "Total hours worked", 
                 "Canceled orders", "% reassignments", "% attendance", "Kms driven", 
-                "Last order date", "Hours Delivering"
+                "Work equipment date", "Hours Delivering"
               ) VALUES ${sql.join(
                 batchData.map(row => sql`(
                   ${row['Courier ID']}, ${row['Platform']}, ${row['Status']}, 
@@ -1806,7 +1749,7 @@ export class PostgresStorage {
                   ${row['Earnings KM'] || '0'}, ${row['Total hours worked'] || '0'}, 
                   ${row['Canceled orders'] || '0'}, ${row['% reassignments'] || '0'}, 
                   ${row['% attendance'] || '0'}, ${row['Kms driven'] || '0'}, 
-                  ${row['Last order date'] || ''}, ${row['Hours Delivering'] || '0'}
+                  ${row['Work equipment date'] || ''}, ${row['Hours Delivering'] || '0'}
                 )`),
                 sql`, `
               )}
