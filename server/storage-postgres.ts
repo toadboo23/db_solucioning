@@ -293,8 +293,22 @@ export class PostgresStorage {
   }
 
   // Company leave operations
+
   async getAllCompanyLeaves (): Promise<CompanyLeave[]> {
-    return await db.select().from(companyLeaves).orderBy(companyLeaves.createdAt);
+    // Solo mostrar bajas de empleados que YA NO están en la tabla employees
+    // Estos son los que pasaron por pending_laboral, fueron tramitados y eliminados
+    const allLeaves = await db.select().from(companyLeaves).orderBy(companyLeaves.createdAt);
+    
+    // Filtrar solo las bajas cuyos empleados ya no están en employees
+    const leavesWithoutEmployee = [];
+    for (const leave of allLeaves) {
+      const employee = await db.select().from(employees).where(eq(employees.idGlovo, leave.employeeId)).limit(1);
+      if (employee.length === 0) {
+        leavesWithoutEmployee.push(leave);
+      }
+    }
+    
+    return leavesWithoutEmployee;
   }
 
   async createCompanyLeave (leaveData: InsertCompanyLeave): Promise<CompanyLeave> {
