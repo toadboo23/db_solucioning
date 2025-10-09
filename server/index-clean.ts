@@ -125,8 +125,8 @@ async function startServer () {
       console.log('⚠️ Continuing server startup...');
     }
 
-    httpServer.listen(PORT, '0.0.0.0', () => {
-      console.log('\n🚀 Server running on http://0.0.0.0:' + PORT);
+    httpServer.listen(PORT, () => {
+      console.log('\n🚀 Server running on http://localhost:' + PORT);
       console.log('📊 Users available in system_users table:');
       console.log('   - Super Admins: nmartinez@solucioning.net, lvega@solucioning.net');
       console.log('   - Admins: trafico1@solucioning.net to trafico20@solucioning.net');

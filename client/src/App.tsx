@@ -13,7 +13,7 @@ import Employees from '@/pages/employees';
 import CompanyLeaves from '@/pages/company-leaves';
 import Captation from '@/pages/captation';
 import Notifications from '@/pages/notifications';
-import SystemLogs from '@/pages/system-logs-ag-grid';
+import SystemLogs from '@/pages/system-logs';
 import UserManagement from '@/pages/user-management';
 
 import Sidebar from '@/components/layout/sidebar';
