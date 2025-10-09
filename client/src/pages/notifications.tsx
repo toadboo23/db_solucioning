@@ -258,7 +258,7 @@ export default function Notifications () {
   };
 
   // Filtrar notificaciones
-  const filteredNotifications = notifications?.filter(notif => {
+  const filteredNotifications = (notifications?.filter(notif => {
     // Filtro por estado
     if (statusFilter !== 'all' && notif.status !== statusFilter) return false;
 
@@ -276,7 +276,14 @@ export default function Notifications () {
     }
 
     return true;
-  }) || [];
+  }) || []).sort((a, b) => {
+    // Si el filtro es pending_laboral, ordenar de más antiguas a más nuevas (ascendente)
+    if (statusFilter === 'pending_laboral') {
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    }
+    // Para otros casos, mantener el orden original (más nuevas primero - descendente)
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   // Calcular métricas
   const metrics = {
