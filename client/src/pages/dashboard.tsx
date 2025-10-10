@@ -63,7 +63,7 @@ export default function Dashboard () {
       if (!res.ok) throw new Error('Error al obtener métricas del dashboard');
       return res.json();
     },
-    refetchInterval: 30000, // Actualizar cada 30 segundos
+    refetchInterval: 5000, // Actualizar cada 5 segundos
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true, // Actualizar cuando se vuelve a la ventana
     retry: false,
@@ -93,6 +93,9 @@ export default function Dashboard () {
   const { data: recentActivity } = useQuery<Notification[]>({
     queryKey: ['/api/notifications'],
     retry: false,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
     // El manejo de error debe hacerse con onError global o en el hook, no aquí
   });
 
