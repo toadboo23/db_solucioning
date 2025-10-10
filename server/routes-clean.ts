@@ -421,7 +421,31 @@ export async function registerRoutes (app: Express): Promise<Server> {
         const processDate = (dateValue: unknown): string | undefined => {
           if (!dateValue) return undefined;
           try {
+            // Si es un número, probablemente es un serial de Excel
+            if (typeof dateValue === 'number') {
+              // Excel serial date: días desde 1900-01-01
+              // Ajustar por el bug de Excel con año 1900 y diferencia con Unix epoch
+              const excelEpoch = new Date(1899, 11, 30); // 30 de diciembre de 1899
+              const date = new Date(excelEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
+              
+              if (!isNaN(date.getTime())) {
+                return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+              }
+              return undefined;
+            }
+            
             const dateStr = String(dateValue).trim();
+            
+            // Si es solo dígitos, puede ser un serial de Excel como string
+            if (/^\d+$/.test(dateStr)) {
+              const excelSerial = parseInt(dateStr, 10);
+              const excelEpoch = new Date(1899, 11, 30);
+              const date = new Date(excelEpoch.getTime() + excelSerial * 24 * 60 * 60 * 1000);
+              
+              if (!isNaN(date.getTime()) && date.getFullYear() > 1900 && date.getFullYear() < 2100) {
+                return date.toISOString().split('T')[0];
+              }
+            }
             
             // Detectar formato DD/MM/YYYY o DD-MM-YYYY o DD.MM.YYYY (común en Excel español)
             const ddmmyyyyRegex = /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/;
