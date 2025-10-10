@@ -517,7 +517,7 @@ export async function registerRoutes (app: Express): Promise<Server> {
           fechaIncidencia: processDate(emp.fechaIncidencia),
           faltasNoCheckInEnDias: processNumber(emp.faltasNoCheckInEnDias) || 0,
           cruce: processString(emp.cruce),
-          status: (processString(emp.status) as 'active' | 'it_leave' | 'company_leave_pending' | 'company_leave_approved' | 'pending_laboral' | 'pendiente_laboral' | 'penalizado') || 'active',
+          status: (processString(emp.status)?.toLowerCase() as 'active' | 'it_leave' | 'company_leave_pending' | 'company_leave_approved' | 'pending_laboral' | 'pendiente_laboral' | 'penalizado') || 'active',
         };
       });
 
