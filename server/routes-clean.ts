@@ -421,6 +421,26 @@ export async function registerRoutes (app: Express): Promise<Server> {
         const processDate = (dateValue: unknown): string | undefined => {
           if (!dateValue) return undefined;
           try {
+            const dateStr = String(dateValue).trim();
+            
+            // Detectar formato DD/MM/YYYY o DD-MM-YYYY o DD.MM.YYYY (común en Excel español)
+            const ddmmyyyyRegex = /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/;
+            const match = dateStr.match(ddmmyyyyRegex);
+            
+            if (match) {
+              const day = parseInt(match[1], 10);
+              const month = parseInt(match[2], 10) - 1; // Months are 0-based in JS
+              const year = parseInt(match[3], 10);
+              const date = new Date(year, month, day);
+              
+              // Validar que la fecha es válida
+              if (date.getFullYear() === year && date.getMonth() === month && date.getDate() === day) {
+                return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+              }
+              return undefined;
+            }
+            
+            // Si no es formato DD/MM/YYYY, intentar conversión estándar
             const date = new Date(dateValue as string | number | Date);
             if (isNaN(date.getTime())) return undefined;
             return date.toISOString().split('T')[0]; // YYYY-MM-DD format
