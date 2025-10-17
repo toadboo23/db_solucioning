@@ -21,6 +21,7 @@ interface EmployeeTableProps {
   onRemovePenalization: (employee: Employee) => void;
   canEdit: boolean;
   isReadOnlyUser?: boolean;
+  user?: { role?: string };
 }
 
 export default function EmployeeTable ({
@@ -32,6 +33,7 @@ export default function EmployeeTable ({
   onRemovePenalization,
   canEdit,
   isReadOnlyUser = false,
+  user,
 }: EmployeeTableProps) {
   const getStatusBadge = (status: string, employee: Employee) => {
     // Check if employee has scheduled penalization
@@ -269,14 +271,17 @@ export default function EmployeeTable ({
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onManageLeave(employee)}
-                            title="Gestionar baja"
-                          >
-                            <UserX className="w-4 h-4" />
-                          </Button>
+                          {/* Botón de gestión de bajas - Solo para super_admin */}
+                          {user?.role === 'super_admin' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onManageLeave(employee)}
+                              title="Gestionar baja"
+                            >
+                              <UserX className="w-4 h-4" />
+                            </Button>
+                          )}
 
                           {/* Botón de penalización */}
                           {employee.status !== 'penalizado' && !employee.penalizationStartDate && (

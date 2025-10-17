@@ -963,6 +963,7 @@ export default function Employees () {
           onRemovePenalization={handleRemovePenalization}
           canEdit={canEditEmployees}
           isReadOnlyUser={isReadOnlyUser}
+          user={user}
         />
       )}
 
