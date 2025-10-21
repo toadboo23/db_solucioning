@@ -328,10 +328,34 @@ export default function CompanyLeaves () {
         Dirección: employeeData?.direccion || 'N/A',
         Vehículo: employeeData?.vehiculo || 'N/A',
         NAF: employeeData?.naf || 'N/A',
+        Flota: employeeData?.flota || 'N/A',
         Horas: employeeData?.horas || 'N/A',
         'CDP%': employeeData?.horas ? ((Number(employeeData.horas) / 38) * 100).toFixed(2) : 'N/A',
-        Flota: employeeData?.flota || 'N/A',
         Puesto: employeeData?.puesto || 'N/A',
+        'Turno 1': employeeData?.turno1 || 'N/A',
+        'Turno 2': employeeData?.turno2 || 'N/A',
+        'Horas Complementarias': employeeData?.complementaries || 'N/A',
+        'Fecha Alta Seg. Social': employeeData?.fechaAltaSegSoc ? new Date(employeeData.fechaAltaSegSoc).toLocaleDateString('es-ES') : 'N/A',
+        'Status Baja Anterior': employeeData?.statusBaja || 'N/A',
+        'Estado Seg. Social': employeeData?.estadoSs || 'N/A',
+        'Informado Horario': employeeData?.informadoHorario ? 'Sí' : 'No',
+        'Cuenta Divilo': employeeData?.cuentaDivilo || 'N/A',
+        'Próxima Asignación Slots': employeeData?.proximaAsignacionSlots ? new Date(employeeData.proximaAsignacionSlots).toLocaleDateString('es-ES') : 'N/A',
+        'Jefe Tráfico': employeeData?.jefeTrafico || 'N/A',
+        'Comentarios Jefe Tráfico': employeeData?.comentsJefeDeTrafico || 'N/A',
+        'Incidencias': employeeData?.incidencias || 'N/A',
+        'Fecha Incidencia': employeeData?.fechaIncidencia ? new Date(employeeData.fechaIncidencia).toLocaleDateString('es-ES') : 'N/A',
+        'Faltas No Check-in (días)': employeeData?.faltasNoCheckInEnDias || 'N/A',
+        'Cruce': employeeData?.cruce || 'N/A',
+        'Fecha Inicio Penalización': employeeData?.penalizationStartDate ? new Date(employeeData.penalizationStartDate).toLocaleDateString('es-ES') : 'N/A',
+        'Fecha Fin Penalización': employeeData?.penalizationEndDate ? new Date(employeeData.penalizationEndDate).toLocaleDateString('es-ES') : 'N/A',
+        'Horas Originales': employeeData?.originalHours || 'N/A',
+        'Equipo de Trabajo': employeeData?.workEquipment || 'N/A',
+        'Motivo Baja IT': employeeData?.itLeaveReason || 'N/A',
+        'Vacaciones Disfrutadas': employeeData?.vacacionesDisfrutadas || 'N/A',
+        'Vacaciones Pendientes': employeeData?.vacacionesPendientes || 'N/A',
+        'Trabaja en Glovo': employeeData?.glovo ? 'Sí' : 'No',
+        'Trabaja en Uber': employeeData?.uber ? 'Sí' : 'No',
         'Tipo de Baja':
           leave.leaveType === 'despido'
             ? 'Despido'
@@ -341,7 +365,14 @@ export default function CompanyLeaves () {
                 ? 'NSPP'
                 : leave.leaveType === 'anulacion'
                   ? 'Anulación'
-                  : leave.leaveType,
+                  : leave.leaveType === 'fin_contrato_temporal'
+                    ? 'Fin Contrato Temporal'
+                    : leave.leaveType === 'agotamiento_it'
+                      ? 'Agotamiento IT'
+                      : leave.leaveType === 'otras_causas'
+                        ? 'Otras Causas'
+                        : leave.leaveType,
+        'Comentarios Baja': leave.comments || 'N/A',
         'Fecha de Baja': new Date(leave.leaveDate).toLocaleDateString('es-ES'),
         'Solicitado por': leave.leaveRequestedBy,
         'Fecha Solicitud': new Date(leave.leaveRequestedAt).toLocaleDateString('es-ES'),
@@ -525,6 +556,7 @@ export default function CompanyLeaves () {
                     <TableHead>Empleado</TableHead>
                     <TableHead>ID Glovo</TableHead>
                     <TableHead>Email Personal</TableHead>
+                    <TableHead>Flota</TableHead>
                     <TableHead>Tipo de Baja</TableHead>
                     <TableHead>Fecha de Baja</TableHead>
                     <TableHead>Solicitado por</TableHead>
@@ -566,6 +598,11 @@ export default function CompanyLeaves () {
                         </TableCell>
                         <TableCell>{String(employeeData?.idGlovo)}</TableCell>
                         <TableCell>{String(employeeData?.email)}</TableCell>
+                        <TableCell>
+                          <div className="text-sm font-medium">
+                            {String(employeeData?.flota) || 'N/A'}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {getLeaveTypeBadge(leave.leaveType)}
                           {leave.motivoCompleto && (
