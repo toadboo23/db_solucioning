@@ -831,8 +831,8 @@ export async function registerRoutes (app: Express): Promise<Server> {
     if (process.env.NODE_ENV !== 'production') console.log('➕ Create company leave request');
     try {
       const user = req.user as { email?: string; role?: string };
-      if (user?.role === 'normal') {
-        return res.status(403).json({ message: 'No tienes permisos para crear bajas de empresa' });
+      if (user?.role !== 'super_admin') {
+        return res.status(403).json({ message: 'Solo el super admin puede solicitar bajas de empresa' });
       }
 
       const leaveData = req.body;
@@ -1009,8 +1009,8 @@ export async function registerRoutes (app: Express): Promise<Server> {
     if (process.env.NODE_ENV !== 'production') console.log('➕ Create IT leave request');
     try {
       const user = req.user as { email?: string; role?: string };
-      if (user?.role === 'normal') {
-        return res.status(403).json({ message: 'No tienes permisos para crear bajas IT' });
+      if (user?.role !== 'super_admin') {
+        return res.status(403).json({ message: 'Solo el super admin puede solicitar bajas IT' });
       }
 
       const leaveData = req.body;
@@ -1582,8 +1582,8 @@ export async function registerRoutes (app: Express): Promise<Server> {
     if (process.env.NODE_ENV !== 'production') console.log('➕ Create IT leave for employee request');
     try {
       const user = req.user as { email?: string; role?: string };
-      if (user?.role === 'normal') {
-        return res.status(403).json({ message: 'No tienes permisos para crear bajas IT' });
+      if (user?.role !== 'super_admin') {
+        return res.status(403).json({ message: 'Solo el super admin puede solicitar bajas IT' });
       }
 
       const { id } = req.params;
