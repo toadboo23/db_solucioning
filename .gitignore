@@ -149,6 +149,10 @@ Thumbs.db
 temp/
 tmp/
 
+# Archivos de backup
+*.backup
+*.backup_
+
 # ========================================
 # CARPETAS DE CONTEXTO
 # ========================================
