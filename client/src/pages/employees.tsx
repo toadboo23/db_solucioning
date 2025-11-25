@@ -14,19 +14,19 @@ import EditEmployeeModal from '@/components/modals/edit-employee-modal';
 import LeaveManagementModal from '@/components/modals/leave-management-modal';
 import ImportEmployeesModal from '@/components/modals/import-employees-modal';
 import EmployeeDetailModal from '@/components/modals/employee-detail-modal';
-import PenalizationModal from '@/components/modals/penalization-modal';
-import PenalizationAlert from '@/components/penalization-alert';
+import VacationModal from '@/components/modals/vacation-modal';
+import VacationAlert from '@/components/vacation-alert';
 import FleetUploadModal from '@/components/modals/fleet-upload-modal';
 import { Plus, Search, Download, FileSpreadsheet, Upload, ChevronLeft, ChevronRight, Users, AlertTriangle, Trash2, RefreshCw, Settings, Clock } from 'lucide-react';
 import type { Employee } from '@shared/schema';
 import { CIUDADES_DISPONIBLES } from '@shared/schema';
 
 // Tipos para las respuestas de la API
-interface CheckExpiredPenalizationsResponse {
+interface CheckExpiredVacationsResponse {
   checked: number;
   restored: number;
   restoredEmployees: Employee[];
-  pendingPenalizations: Employee[];
+  pendingVacations: Employee[];
 }
 
 interface CleanLeavesResponse {
@@ -53,9 +53,9 @@ export default function Employees () {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
-  const [isPenalizationModalOpen, setIsPenalizationModalOpen] = useState(false);
-  const [penalizationAction, setPenalizationAction] = useState<'penalize' | 'remove'>('penalize');
-  const [penalizationEmployee, setPenalizationEmployee] = useState<Employee | null>(null);
+  const [isVacationModalOpen, setIsVacationModalOpen] = useState(false);
+  const [vacationAction, setVacationAction] = useState<'vacation' | 'remove'>('vacation');
+  const [vacationEmployee, setVacationEmployee] = useState<Employee | null>(null);
 
   // Nuevo estado para controlar la carga manual de empleados
   const [employeesLoaded, setEmployeesLoaded] = useState(false);
@@ -217,7 +217,7 @@ export default function Employees () {
   // Definir permisos específicos por rol
   const canEditEmployees = user?.role === 'admin' || user?.role === 'super_admin';
   const canImportEmployees = user?.role === 'super_admin'; // Solo super admin puede importar
-  const canExportEmployees = user?.role === 'admin' || user?.role === 'super_admin'; // Admin y super admin pueden exportar
+  const canExportEmployees = Boolean(user); // Todos los roles autenticados pueden exportar
   const canDownloadTemplate = user?.role === 'admin' || user?.role === 'super_admin'; // Admin y super admin pueden descargar plantillas
   const isReadOnlyUser = user?.role === 'normal'; // Usuario normal solo puede consultar
 
@@ -241,30 +241,30 @@ export default function Employees () {
     setIsDetailModalOpen(true);
   };
 
-  const handlePenalize = (employee: Employee) => {
-    setPenalizationEmployee(employee);
-    setPenalizationAction('penalize');
-    setIsPenalizationModalOpen(true);
+  const handleVacation = (employee: Employee) => {
+    setVacationEmployee(employee);
+    setVacationAction('vacation');
+    setIsVacationModalOpen(true);
   };
 
-  const handleRemovePenalization = (employee: Employee) => {
-    setPenalizationEmployee(employee);
-    setPenalizationAction('remove');
-    setIsPenalizationModalOpen(true);
+  const handleRemoveVacation = (employee: Employee) => {
+    setVacationEmployee(employee);
+    setVacationAction('remove');
+    setIsVacationModalOpen(true);
   };
 
-  // Mutación para verificar penalizaciones expiradas
-  const checkExpiredPenalizationsMutation = useMutation<CheckExpiredPenalizationsResponse>({
+  // Mutación para verificar vacaciones expiradas
+  const checkExpiredVacationsMutation = useMutation<CheckExpiredVacationsResponse>({
     mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/employees/check-expired-penalizations');
-      return response as unknown as CheckExpiredPenalizationsResponse;
+      const response = await apiRequest('POST', '/api/employees/check-expired-vacations');
+      return response as unknown as CheckExpiredVacationsResponse;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/employees'] });
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard/metrics'] });
       toast({
         title: 'Verificación completada',
-        description: `Se verificaron ${data.checked} penalizaciones y se restauraron ${data.restored} empleados`,
+        description: `Se verificaron ${data.checked} vacaciones y se restauraron ${data.restored} empleados`,
       });
     },
     onError: (_error) => {
@@ -280,7 +280,7 @@ export default function Employees () {
         return;
       }
       toast({
-        title: 'Error al verificar penalizaciones',
+        title: 'Error al verificar vacaciones',
         description: _error instanceof Error ? _error.message : 'Error desconocido',
         variant: 'destructive',
       });
@@ -357,8 +357,8 @@ export default function Employees () {
     },
   });
 
-  const handleCheckExpiredPenalizations = () => {
-    checkExpiredPenalizationsMutation.mutate();
+  const handleCheckExpiredVacations = () => {
+    checkExpiredVacationsMutation.mutate();
   };
 
   // Mutación para obtener vista previa de limpieza
@@ -664,8 +664,8 @@ export default function Employees () {
 
   return (
     <div className="p-6">
-      {/* Alerta de penalizaciones por expirar */}
-      <PenalizationAlert onCheckExpired={handleCheckExpiredPenalizations} />
+      {/* Alerta de vacaciones por expirar */}
+      <VacationAlert onCheckExpired={handleCheckExpiredVacations} />
       
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -723,7 +723,7 @@ export default function Employees () {
               </Button>
             )}
             
-            {/* Botón Exportar - Solo Admin y Super Admin */}
+            {/* Botón Exportar - Disponible para todos los roles */}
             {canExportEmployees && (
               <Button
                 variant="outline"
@@ -736,16 +736,16 @@ export default function Employees () {
               </Button>
             )}
 
-            {/* Botón Verificar Penalizaciones Expiradas - Solo Admin y Super Admin */}
+            {/* Botón Verificar Vacaciones Expiradas - Solo Admin y Super Admin */}
             {canEditEmployees && (
               <Button
                 variant="outline"
-                onClick={handleCheckExpiredPenalizations}
-                disabled={checkExpiredPenalizationsMutation.isPending}
+                onClick={handleCheckExpiredVacations}
+                disabled={checkExpiredVacationsMutation.isPending}
                 className="border-orange-500 text-orange-600 hover:bg-orange-50"
               >
                 <AlertTriangle className="w-4 h-4 mr-2" />
-                {checkExpiredPenalizationsMutation.isPending ? 'Verificando...' : 'Verificar Penalizaciones'}
+                {checkExpiredVacationsMutation.isPending ? 'Verificando...' : 'Verificar Vacaciones'}
               </Button>
             )}
 
@@ -898,7 +898,7 @@ export default function Employees () {
                     <SelectItem value="pendiente_activacion">Pendiente Activación</SelectItem>
                     <SelectItem value="it_leave">Baja IT</SelectItem>
                     <SelectItem value="pending_laboral">Pendiente Laboral</SelectItem>
-                    <SelectItem value="penalizado">Penalizado</SelectItem>
+                    <SelectItem value="vacaciones">Vacaciones</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -959,8 +959,8 @@ export default function Employees () {
           onEditEmployee={handleEditEmployee}
           onManageLeave={handleManageLeave}
           onViewDetails={handleViewDetails}
-          onPenalize={handlePenalize}
-          onRemovePenalization={handleRemovePenalization}
+          onPenalize={handleVacation}
+          onRemovePenalization={handleRemoveVacation}
           canEdit={canEditEmployees}
           isReadOnlyUser={isReadOnlyUser}
         />
@@ -1080,14 +1080,14 @@ export default function Employees () {
         }}
       />
 
-      <PenalizationModal
-        isOpen={isPenalizationModalOpen}
+      <VacationModal
+        isOpen={isVacationModalOpen}
         onClose={() => {
-          setIsPenalizationModalOpen(false);
-          setPenalizationEmployee(null);
+          setIsVacationModalOpen(false);
+          setVacationEmployee(null);
         }}
-        employee={penalizationEmployee}
-        action={penalizationAction}
+        employee={vacationEmployee}
+        action={vacationAction}
       />
 
       {/* Modal para importar CSV de Fleet */}

@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Building2, Shield, Ticket, FileText } from 'lucide-react';
+import { Building2, Shield, Ticket, FileText, AlertCircle, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useLocation } from 'wouter';
 
 export default function Landing () {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -16,6 +17,7 @@ export default function Landing () {
   });
   const queryClient = useQueryClient();
   const { setUser } = useAuth();
+  const [, navigate] = useLocation();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +43,9 @@ export default function Landing () {
 
           // Invalidar la query de autenticación para que se actualice
           queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+
+          // Redirigir directamente a empleados
+          navigate('/employee', { replace: true });
 
           // Limpiar el formulario
           setLoginData({
@@ -73,9 +78,39 @@ export default function Landing () {
     window.open('http://69.62.107.86:8080/open.php', '_blank', 'noopener,noreferrer');
   };
 
+  const handleRedirectToNewBackoffice = () => {
+    window.location.href = 'https://backoffice.it.solucioning.net/';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        {/* Banner de alerta para redirigir al nuevo backoffice */}
+        <div className="mb-6 bg-amber-50 border-2 border-amber-400 rounded-lg p-4 shadow-md">
+          <div className="flex items-start">
+            <AlertCircle className="h-5 w-5 text-amber-600 mr-3 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-900 mb-3">
+                El acceso a este sistema está restringido. Por favor, utiliza el nuevo Back Office.
+              </p>
+              <Button
+                type="button"
+                onClick={handleRedirectToNewBackoffice}
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium h-10 text-sm"
+                aria-label="Acceso - Nuevo Back Office"
+                tabIndex={0}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    handleRedirectToNewBackoffice();
+                  }
+                }}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Acceso - Nuevo Back Office
+              </Button>
+            </div>
+          </div>
+        </div>
         <Card className="shadow-xl">
           <CardHeader className="text-center pb-8">
             <div className="flex justify-center mb-4">

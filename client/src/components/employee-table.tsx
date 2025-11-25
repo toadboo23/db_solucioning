@@ -34,14 +34,14 @@ export default function EmployeeTable ({
   isReadOnlyUser = false,
 }: EmployeeTableProps) {
   const getStatusBadge = (status: string, employee: Employee) => {
-    // Check if employee has scheduled penalization
-    const hasScheduledPenalization = employee.penalizationStartDate && 
+    // Check if employee has scheduled vacation
+    const hasScheduledVacation = employee.penalizationStartDate && 
       employee.penalizationEndDate && 
-      status !== 'penalizado' &&
+      status !== 'vacaciones' &&
       new Date(employee.penalizationStartDate) > new Date();
 
-    if (hasScheduledPenalization) {
-      return <Badge className="bg-blue-100 text-blue-800">Penalización Programada</Badge>;
+    if (hasScheduledVacation) {
+      return <Badge className="bg-blue-100 text-blue-800">Vacaciones Programadas</Badge>;
     }
 
     switch (status) {
@@ -56,8 +56,8 @@ export default function EmployeeTable ({
       // Los empleados permanecen 'active' hasta que se tramite la pendiente laboral
       case 'pending_laboral':
         return <Badge className="bg-purple-100 text-purple-800">Pendiente Laboral</Badge>;
-      case 'penalizado':
-        return <Badge className="bg-orange-100 text-orange-800">Penalizado/Vacaciones</Badge>;
+      case 'vacaciones':
+        return <Badge className="bg-orange-100 text-orange-800">Vacaciones</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -67,7 +67,7 @@ export default function EmployeeTable ({
     if (status === 'it_leave') {
       return 'bg-orange-50 border-l-4 border-l-orange-400';
     }
-    if (status === 'penalizado') {
+    if (status === 'vacaciones') {
       return 'bg-orange-50 border-l-4 border-l-orange-400';
     }
     if (status === 'pending_laboral') {
@@ -172,18 +172,18 @@ export default function EmployeeTable ({
                   </TableCell>
                   <TableCell>
                     {(() => {
-                      const hasScheduledPenalization = employee.penalizationStartDate && 
+                      const hasScheduledVacation = employee.penalizationStartDate && 
                         employee.penalizationEndDate && 
-                        employee.status !== 'penalizado' &&
+                        employee.status !== 'vacaciones' &&
                         new Date(employee.penalizationStartDate) > new Date();
 
-                      if (employee.status === 'penalizado') {
+                      if (employee.status === 'vacaciones') {
                         return (
                           <span className="inline-block px-2 py-1 rounded bg-red-100 text-red-700 font-semibold text-xs">
-                            {employee.horas ?? 0} <span className="ml-1">(penalizado/vacaciones)</span>
+                            {employee.horas ?? 0} <span className="ml-1">(vacaciones)</span>
                           </span>
                         );
-                      } else if (hasScheduledPenalization) {
+                      } else if (hasScheduledVacation) {
                         return (
                           <span className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 font-semibold text-xs">
                             {employee.horas ?? 0} <span className="ml-1">(programado)</span>
@@ -205,7 +205,7 @@ export default function EmployeeTable ({
                     })()}
                   </TableCell>
                   <TableCell>
-                    {employee.status === 'penalizado' ? (
+                    {employee.status === 'vacaciones' ? (
                       <span className="inline-block px-2 py-1 rounded bg-red-100 text-red-700 font-semibold text-xs">
                         0%
                       </span>
@@ -224,7 +224,7 @@ export default function EmployeeTable ({
                     )}
                   </TableCell>
                   <TableCell>
-                    {employee.status === 'penalizado' ? (
+                    {employee.status === 'vacaciones' ? (
                       <span className="inline-block px-2 py-1 rounded bg-red-100 text-red-700 font-semibold text-xs">
                         0 horas
                       </span>
@@ -278,26 +278,26 @@ export default function EmployeeTable ({
                             <UserX className="w-4 h-4" />
                           </Button>
 
-                          {/* Botón de penalización */}
-                          {employee.status !== 'penalizado' && !employee.penalizationStartDate && (
+                          {/* Botón de vacaciones */}
+                          {employee.status !== 'vacaciones' && !employee.penalizationStartDate && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => onPenalize(employee)}
-                              title="Penalizar empleado"
+                              title="Asignar vacaciones"
                               className="text-orange-600 hover:text-orange-700"
                             >
                               <AlertTriangle className="w-4 h-4" />
                             </Button>
                           )}
 
-                          {/* Botón para remover penalización */}
-                          {(employee.status === 'penalizado' || employee.penalizationStartDate) && (
+                          {/* Botón para remover vacaciones */}
+                          {(employee.status === 'vacaciones' || employee.penalizationStartDate) && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => onRemovePenalization(employee)}
-                              title="Remover penalización"
+                              title="Remover vacaciones"
                               className="text-green-600 hover:text-green-700"
                             >
                               <AlertTriangle className="w-4 h-4" />

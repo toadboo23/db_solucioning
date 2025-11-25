@@ -1,7 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { isUnauthorizedError } from '@/lib/authUtils';
 import {
@@ -32,7 +31,6 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 export default function CompanyLeaves () {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -72,7 +70,7 @@ export default function CompanyLeaves () {
   }, [reactivatedEmployees]);
 
   // Definir permisos específicos por rol
-  const canExportCompanyLeaves = user?.role === 'super_admin'; // Solo super admin puede exportar
+  const canExportCompanyLeaves = Boolean(user); // Todos los roles autenticados pueden exportar
   const isReadOnlyUser = user?.role === 'normal';
 
   // Mutación para reactivar empleado desde baja empresa
@@ -129,8 +127,6 @@ export default function CompanyLeaves () {
 
   // Filtrar y ordenar bajas según los criterios de búsqueda
   const filteredCompanyLeaves = useMemo(() => {
-    if (user?.role === 'normal') return [];
-
     return allCompanyLeaves.filter(leave => {
       const employeeData = leave.employeeData as Record<string, unknown>;
 
@@ -187,12 +183,6 @@ export default function CompanyLeaves () {
     }
   };
 
-  useEffect(() => {
-    if (user?.role === 'normal') {
-      navigate('/employees', { replace: true });
-    }
-  }, [user, navigate]);
-
   // Detectar empleados ya reactivados al cargar los datos
   useEffect(() => {
     if (allCompanyLeaves.length > 0) {
@@ -222,8 +212,6 @@ export default function CompanyLeaves () {
       detectReactivatedEmployees();
     }
   }, [allCompanyLeaves]);
-
-  if (user?.role === 'normal') return null;
 
   const getLeaveTypeBadge = (type: string) => {
     const variants = {
@@ -347,8 +335,8 @@ export default function CompanyLeaves () {
         'Fecha Incidencia': employeeData?.fechaIncidencia ? new Date(employeeData.fechaIncidencia).toLocaleDateString('es-ES') : 'N/A',
         'Faltas No Check-in (días)': employeeData?.faltasNoCheckInEnDias || 'N/A',
         'Cruce': employeeData?.cruce || 'N/A',
-        'Fecha Inicio Penalización': employeeData?.penalizationStartDate ? new Date(employeeData.penalizationStartDate).toLocaleDateString('es-ES') : 'N/A',
-        'Fecha Fin Penalización': employeeData?.penalizationEndDate ? new Date(employeeData.penalizationEndDate).toLocaleDateString('es-ES') : 'N/A',
+        'Fecha Inicio Vacaciones': employeeData?.penalizationStartDate ? new Date(employeeData.penalizationStartDate).toLocaleDateString('es-ES') : 'N/A',
+        'Fecha Fin Vacaciones': employeeData?.penalizationEndDate ? new Date(employeeData.penalizationEndDate).toLocaleDateString('es-ES') : 'N/A',
         'Horas Originales': employeeData?.originalHours || 'N/A',
         'Equipo de Trabajo': employeeData?.workEquipment || 'N/A',
         'Motivo Baja IT': employeeData?.itLeaveReason || 'N/A',

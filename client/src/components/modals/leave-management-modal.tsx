@@ -32,15 +32,16 @@ export default function LeaveManagementModal ({
   const [itReason, setItReason] = useState<'enfermedad' | 'accidente' | 'embarazo' | 'paternidad' | ''>('');
   const [companyReason, setCompanyReason] = useState<'despido' | 'voluntaria' | 'nspp' | 'anulacion' | 'fin_contrato_temporal' | 'agotamiento_it' | 'otras_causas' | ''>('');
   const [leaveDate, setLeaveDate] = useState('');
+  const [leaveEndDate, setLeaveEndDate] = useState('');
   const [otherReasonText, setOtherReasonText] = useState('');
 
   const itLeaveMutation = useMutation({
-    mutationFn: async (data: { leaveType: string; leaveDate: Date }) => {
+    mutationFn: async (data: { leaveType: string; leaveDate: string; leaveEndDate?: string }) => {
       if (!employee) throw new Error('No employee selected');
       const response = await apiRequest('POST', `/api/employees/${employee.idGlovo}/it-leave`, data);
       return response;
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       // Invalidar TODAS las queries relacionadas con empleados
       queryClient.invalidateQueries({ queryKey: ['/api/employees'] });
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard/metrics'] });
@@ -61,9 +62,13 @@ export default function LeaveManagementModal ({
         queryClient.refetchQueries({ queryKey: ['/api/employees'] });
       }, 100);
 
+      const endDateMessage = response?.employee?.status === 'it_leave'
+        ? 'La baja IT ha sido registrada y el empleado quedó en estado "Baja IT".'
+        : 'La baja IT ha sido registrada y finalizada; el empleado vuelve a estado activo.';
+
       toast({
         title: '✅ Baja IT procesada',
-        description: 'La baja IT ha sido procesada correctamente. Estado del empleado actualizado a "Baja IT".',
+        description: endDateMessage,
       });
       onClose();
       resetForm();
@@ -128,6 +133,7 @@ export default function LeaveManagementModal ({
     setItReason('');
     setCompanyReason('');
     setLeaveDate('');
+    setLeaveEndDate('');
     setOtherReasonText('');
   };
 
@@ -150,10 +156,13 @@ export default function LeaveManagementModal ({
         });
         return;
       }
-      const itLeaveData = {
+      const itLeaveData: { leaveType: string; leaveDate: string; leaveEndDate?: string } = {
         leaveType: itReason,
-        leaveDate: new Date(leaveDate),
+        leaveDate: leaveDate,
       };
+      if (leaveEndDate) {
+        itLeaveData.leaveEndDate = leaveEndDate;
+      }
       itLeaveMutation.mutate(itLeaveData);
     } else if (leaveType === 'company') {
       if (!companyReason) {
@@ -317,6 +326,22 @@ export default function LeaveManagementModal ({
               className="mt-1"
             />
           </div>
+
+          {leaveType === 'it' && (
+            <div>
+              <Label htmlFor="leaveEndDate" className="text-sm font-medium text-gray-700">
+                Fecha de Finalización (opcional)
+              </Label>
+              <Input
+                id="leaveEndDate"
+                type="date"
+                value={leaveEndDate}
+                onChange={(e) => setLeaveEndDate(e.target.value)}
+                className="mt-1"
+                min={leaveDate || undefined}
+              />
+            </div>
+          )}
 
           <div className="flex justify-end space-x-3">
             <Button

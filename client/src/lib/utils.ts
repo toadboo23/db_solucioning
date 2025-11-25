@@ -85,8 +85,8 @@ export function createEmployeeTemplate (fileName: string = 'plantilla_empleados'
     'faltas_no_check_in_en_dias', // Faltas no check-in en días
     'cruce',              // Cruce
     'status',             // Status (active, it_leave, etc.)
-    'penalization_start_date', // Fecha inicio penalización
-    'penalization_end_date',   // Fecha fin penalización
+    'penalization_start_date', // Fecha inicio vacaciones
+    'penalization_end_date',   // Fecha fin vacaciones
     'original_hours',     // Horas originales
     'flota',              // Flota
     'puesto',             // Puesto

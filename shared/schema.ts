@@ -107,6 +107,7 @@ export const employees = pgTable('employees', {
   workEquipment: varchar('last_order', { length: 50 }),
   puesto: varchar('puesto', { length: 20 }),
   itLeaveReason: varchar('it_leave_reason', { length: 50 }),
+  itLeaveEndDate: date('it_leave_end_date'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   vacacionesDisfrutadas: numeric('vacaciones_disfrutadas', { precision: 6, scale: 2 }).default('0.00'),

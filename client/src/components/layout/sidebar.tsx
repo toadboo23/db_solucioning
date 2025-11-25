@@ -4,7 +4,6 @@ import { useAuth, useNotificationCount } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  HomeIcon,
   UsersIcon,
   BuildingIcon,
   BellIcon,
@@ -25,7 +24,6 @@ interface NavigationItem {
 }
 
 const navigation: NavigationItem[] = [
-  { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Empleados', href: '/employees', icon: UsersIcon },
   // { name: 'Captación/Salidas', href: '/captation', icon: TargetIcon }, // Oculto temporalmente
   { name: 'Baja Empresa', href: '/company-leaves', icon: BuildingIcon },
@@ -55,7 +53,8 @@ export default function Sidebar ({ isMobileOpen = false, onMobileClose }: Sideba
 
   const getPageName = (pathname: string) => {
     const pageMap: Record<string, string> = {
-      '/dashboard': 'Dashboard',
+      '/': 'Empleados',
+      '/employee': 'Empleados',
       '/employees': 'Empleados',
       '/company-leaves': 'Bajas Empresa',
       '/notifications': 'Notificaciones',

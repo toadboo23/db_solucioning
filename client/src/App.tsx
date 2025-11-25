@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Switch, Route } from 'wouter';
+import { useEffect, useState } from 'react';
+import { Switch, Route, useLocation } from 'wouter';
 import { queryClient } from './lib/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -7,7 +7,6 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuth, useAuthStatus } from '@/hooks/useAuth';
 import NotFound from '@/pages/not-found';
 import Landing from '@/pages/landing';
-import Dashboard from '@/pages/dashboard';
 import Employees from '@/pages/employees';
 
 import CompanyLeaves from '@/pages/company-leaves';
@@ -18,6 +17,16 @@ import UserManagement from '@/pages/user-management';
 
 import Sidebar from '@/components/layout/sidebar';
 import Header from '@/components/layout/header';
+
+function DashboardRedirect () {
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    navigate('/employee', { replace: true });
+  }, [navigate]);
+
+  return null;
+}
 
 function Router () {
   const { isAuthenticated: localAuth, user: localUser } = useAuth();
@@ -58,7 +67,9 @@ function Router () {
         <Header onMobileMenuToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)} />
         <main className="flex-1 overflow-y-auto pt-16 bg-gray-50">
           <Switch>
-            <Route path="/" component={Dashboard} />
+            <Route path="/" component={Employees} />
+            <Route path="/employee" component={Employees} />
+            <Route path="/dashboard" component={DashboardRedirect} />
             <Route path="/employees" component={Employees} />
             <Route path="/captation" component={Captation} />
 

@@ -153,6 +153,13 @@ export async function registerRoutes (app: Express): Promise<Server> {
 
       let employees = await storage.getAllEmployees();
 
+      // Filtrar automáticamente empleados dados de baja (company_leave_approved) por defecto
+      // Solo mostrar empleados activos a menos que se especifique un filtro de status diferente
+      if (!status || status === 'all') {
+        employees = employees.filter(emp => emp.status !== 'company_leave_approved');
+        if (process.env.NODE_ENV !== 'production') console.log(`🔍 Filtrando empleados dados de baja por defecto`);
+      }
+
       // Si el usuario no es super_admin, filtrar por su ciudad asignada (case-insensitive)
       if (user?.role !== 'super_admin' && typeof user?.ciudad === 'string') {
         const userCityLower = user.ciudad.toLowerCase();
@@ -1587,25 +1594,32 @@ export async function registerRoutes (app: Express): Promise<Server> {
       }
 
       const { id } = req.params;
-      const { leaveType, leaveDate } = req.body;
+      const { leaveType, leaveDate, leaveEndDate } = req.body;
       const now = new Date();
+      const startDate = leaveDate ? new Date(leaveDate) : now;
+      const endDate = leaveEndDate ? new Date(leaveEndDate) : null;
 
       // Actualizar estado y fecha en employees
-      const updatedEmployee = await storage.setEmployeeItLeave(id, leaveDate || now, leaveType);
+      const updatedEmployee = await storage.setEmployeeItLeave(id, startDate, leaveType, endDate);
 
       // Log audit for IT leave creation
+      const actionDescription = endDate
+        ? `Usuario ${user.email} REGISTRÓ la baja IT (${leaveType || 'no especificado'}) para el empleado ${id} desde ${startDate.toLocaleDateString('es-ES')} hasta ${endDate.toLocaleDateString('es-ES')}. Estado restablecido.`
+        : `Usuario ${user.email} CREÓ una ${leaveType === 'enfermedad' ? 'Baja IT - Enfermedad' : leaveType === 'accidente' ? 'Baja IT - Accidente' : `Baja IT - ${leaveType || 'No especificado'}`} para el empleado ${id} - Fecha: ${startDate.toLocaleDateString('es-ES')}`;
+
       await AuditService.logAction({
         userId: user.email || '',
         userRole: (user.role as 'super_admin' | 'admin') || 'normal',
-        action: 'set_it_leave',
+        action: endDate ? 'close_it_leave' : 'set_it_leave',
         entityType: 'employee',
         entityId: id,
         entityName: `${updatedEmployee?.nombre || ''} ${updatedEmployee?.apellido || ''}`,
-        description: `Usuario ${user.email} CREÓ una ${leaveType === 'enfermedad' ? 'Baja IT - Enfermedad' : leaveType === 'accidente' ? 'Baja IT - Accidente' : `Baja IT - ${leaveType || 'No especificado'}`} para el empleado ${id} - Fecha: ${new Date(leaveDate || now).toLocaleDateString('es-ES')}`,
+        description: actionDescription,
         newData: {
           ...updatedEmployee,
           motivoCompleto: leaveType === 'enfermedad' ? 'Baja IT - Enfermedad' : leaveType === 'accidente' ? 'Baja IT - Accidente' : `Baja IT - ${leaveType || 'No especificado'}`,
-          fechaBaja: new Date(leaveDate || now).toLocaleDateString('es-ES'),
+          fechaBaja: startDate.toLocaleDateString('es-ES'),
+          fechaFin: endDate ? endDate.toLocaleDateString('es-ES') : undefined,
         },
       });
 
@@ -1616,14 +1630,11 @@ export async function registerRoutes (app: Express): Promise<Server> {
     }
   });
 
-  // Export employees to CSV (protected - admin/super_admin only)
+  // Export employees to CSV (accesible para todos los roles autenticados)
   app.get('/api/employees/export/csv', isAuthenticated, async (req: any, res) => {
     if (process.env.NODE_ENV !== 'production') console.log('📤 Export employees to CSV request');
     try {
       const user = req.user as { email?: string; role?: string };
-      if (user?.role === 'normal') {
-        return res.status(403).json({ message: 'No tienes permisos para exportar empleados' });
-      }
 
       // Obtener todos los empleados usando el método existente
       let employees = await storage.getAllEmployees();

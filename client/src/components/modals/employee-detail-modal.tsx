@@ -101,8 +101,8 @@ export default function EmployeeDetailModal ({
         return <Badge className="bg-red-100 text-red-800">Baja Empresa Aprobada</Badge>;
       case 'pending_laboral':
         return <Badge className="bg-purple-100 text-purple-800">Pendiente Laboral</Badge>;
-      case 'penalizado':
-        return <Badge className="bg-orange-100 text-orange-800">Penalizado/Vacaciones</Badge>;
+      case 'vacaciones':
+        return <Badge className="bg-orange-100 text-orange-800">Vacaciones</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -287,12 +287,12 @@ export default function EmployeeDetailModal ({
                 <InfoItem
                   icon={Clock}
                   label="Horas de Trabajo"
-                  value={employee.status === 'penalizado' ? `${employee.horas ?? 0} horas (penalizado/vacaciones)` : `${employee.horas ?? 0} horas`}
+                  value={employee.status === 'vacaciones' ? `${employee.horas ?? 0} horas (vacaciones)` : `${employee.horas ?? 0} horas`}
                 />
                 <InfoItem
                   icon={Clock}
                   label="Horas Complementarias"
-                  value={employee.status === 'penalizado' ? `${typeof employee.complementaries === 'number' ? employee.complementaries : (employee.complementaries || '0')} horas (penalizado/vacaciones)` : `${typeof employee.complementaries === 'number' ? employee.complementaries : (employee.complementaries || '0')} horas`}
+                  value={employee.status === 'vacaciones' ? `${typeof employee.complementaries === 'number' ? employee.complementaries : (employee.complementaries || '0')} horas (vacaciones)` : `${typeof employee.complementaries === 'number' ? employee.complementaries : (employee.complementaries || '0')} horas`}
                 />
                 <InfoItem
                   icon={Clock}
@@ -414,6 +414,14 @@ export default function EmployeeDetailModal ({
                       className="border-orange-100"
                     />
                   )}
+                  {employee.itLeaveEndDate && (
+                    <InfoItem
+                      icon={Calendar}
+                      label="Fin Baja IT"
+                      value={formatDate(employee.itLeaveEndDate)}
+                      className="border-orange-100"
+                    />
+                  )}
                   {employee.incidencias && (
                     <div className="p-3 rounded-lg bg-orange-50 border border-orange-200">
                       <p className="text-sm font-medium text-orange-800 mb-2">Incidencias</p>
@@ -475,50 +483,50 @@ export default function EmployeeDetailModal ({
             </CardContent>
           </Card>
 
-          {/* Sección especial para empleados penalizados o con penalización programada */}
-          {(employee.status === 'penalizado' || employee.penalizationStartDate) && (
+          {/* Sección especial para empleados en vacaciones o con vacaciones programadas */}
+          {(employee.status === 'vacaciones' || employee.penalizationStartDate) && (
             <div className={`border rounded-lg p-4 mb-6 ${
-              employee.status === 'penalizado' 
+              employee.status === 'vacaciones' 
                 ? 'bg-red-50 border-red-200' 
                 : 'bg-blue-50 border-blue-200'
             }`}>
               <div className="flex items-start gap-3">
                 <AlertTriangle className={`w-6 h-6 mt-0.5 flex-shrink-0 ${
-                  employee.status === 'penalizado' ? 'text-red-600' : 'text-blue-600'
+                  employee.status === 'vacaciones' ? 'text-red-600' : 'text-blue-600'
                 }`} />
                 <div>
                   <h4 className={`font-bold mb-1 ${
-                    employee.status === 'penalizado' ? 'text-red-800' : 'text-blue-800'
+                    employee.status === 'vacaciones' ? 'text-red-800' : 'text-blue-800'
                   }`}>
-                    {employee.status === 'penalizado' ? 'Empleado penalizado/vacaciones' : 'Penalización programada'}
+                    {employee.status === 'vacaciones' ? 'Empleado en vacaciones' : 'Vacaciones programadas'}
                   </h4>
                   <p className={`text-sm mb-2 ${
-                    employee.status === 'penalizado' ? 'text-red-700' : 'text-blue-700'
+                    employee.status === 'vacaciones' ? 'text-red-700' : 'text-blue-700'
                   }`}>
-                    {employee.status === 'penalizado' 
-                      ? 'Este empleado está penalizado/vacaciones. Mantiene sus horas actuales durante el período de penalización/vacaciones.'
-                      : 'Este empleado tiene una penalización programada. Sus horas se mantendrán hasta que llegue la fecha de inicio de la penalización.'
+                    {employee.status === 'vacaciones' 
+                      ? 'Este empleado está en vacaciones. Mantiene sus horas actuales durante el período de vacaciones.'
+                      : 'Este empleado tiene vacaciones programadas. Sus horas se mantendrán hasta que llegue la fecha de inicio de las vacaciones.'
                     }
                   </p>
                   <ul className={`text-sm space-y-1 ${
-                    employee.status === 'penalizado' ? 'text-red-700' : 'text-blue-700'
+                    employee.status === 'vacaciones' ? 'text-red-700' : 'text-blue-700'
                   }`}>
                     <li><b>Horas originales:</b> {employee.originalHours ?? 'No registradas'}</li>
                     <li>
-                      <b>Fecha inicio penalización:</b> {
+                      <b>Fecha inicio vacaciones:</b> {
                         employee.penalizationStartDate
                           ? new Date(employee.penalizationStartDate).toLocaleDateString('es-ES')
                           : 'No especificada'
                       }
                     </li>
                     <li>
-                      <b>Fecha fin penalización:</b> {
+                      <b>Fecha fin vacaciones:</b> {
                         employee.penalizationEndDate
                           ? new Date(employee.penalizationEndDate).toLocaleDateString('es-ES')
                           : 'No especificada'
                       }
                     </li>
-                    {employee.status !== 'penalizado' && employee.penalizationStartDate && (
+                    {employee.status !== 'vacaciones' && employee.penalizationStartDate && (
                       <li>
                         <b>Estado:</b> 
                         <span className="ml-1 inline-block px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs">

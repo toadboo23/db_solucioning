@@ -41,6 +41,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:dev_password@postgres:5432/employee_management}
       SESSION_SECRET: ${SESSION_SECRET:-dev_session_secret}
       PORT: ${PORT:-5173}
+      RESTRICT_LOGIN_TO_SUPER_ADMIN: ${RESTRICT_LOGIN_TO_SUPER_ADMIN:-false}
     volumes:
       - ./server:/app/server
       - ./shared:/app/shared

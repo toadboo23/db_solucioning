@@ -295,20 +295,28 @@ export class PostgresStorage {
   // Company leave operations
 
   async getAllCompanyLeaves (): Promise<CompanyLeave[]> {
-    // Solo mostrar bajas de empleados que YA NO están en la tabla employees
-    // Estos son los que pasaron por pending_laboral, fueron tramitados y eliminados
-    const allLeaves = await db.select().from(companyLeaves).orderBy(companyLeaves.createdAt);
-    
-    // Filtrar solo las bajas cuyos empleados ya no están en employees
-    const leavesWithoutEmployee = [];
-    for (const leave of allLeaves) {
-      const employee = await db.select().from(employees).where(eq(employees.idGlovo, leave.employeeId)).limit(1);
-      if (employee.length === 0) {
-        leavesWithoutEmployee.push(leave);
+    const camelizeKeys = (value: unknown): unknown => {
+      if (Array.isArray(value)) {
+        return value.map((item) => camelizeKeys(item));
       }
-    }
-    
-    return leavesWithoutEmployee;
+
+      if (value && typeof value === 'object') {
+        return Object.entries(value as Record<string, unknown>).reduce<Record<string, unknown>>((acc, [key, val]) => {
+          const camelKey = key.replace(/_([a-z])/g, (_match, char: string) => char.toUpperCase());
+          acc[camelKey] = camelizeKeys(val);
+          return acc;
+        }, {});
+      }
+
+      return value;
+    };
+
+    const allLeaves = await db.select().from(companyLeaves).orderBy(companyLeaves.createdAt);
+
+    return allLeaves.map((leave) => ({
+      ...leave,
+      employeeData: camelizeKeys(leave.employeeData) as CompanyLeave['employeeData'],
+    }));
   }
 
   async createCompanyLeave (leaveData: InsertCompanyLeave): Promise<CompanyLeave> {

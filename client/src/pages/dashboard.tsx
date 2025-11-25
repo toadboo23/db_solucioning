@@ -15,7 +15,7 @@ interface MetricsData {
   activeEmployees: number;
   itLeaves: number;
   pendingLaboral: number;
-  penalizedEmployees: number;
+  employeesOnVacation: number;
   pendingActions: number;
   employeesByCityCode: { cityCode: string; count: number }[];
   debug?: Record<string, unknown>;
